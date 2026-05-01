@@ -2,10 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getStore } from '@/lib/store';
-import { User } from '@/types';
-import { generateId } from '@/lib/utils';
-import { Wallet, Eye, EyeOff } from 'lucide-react';
+import { setToken, apiFetch } from '@/lib/auth';
+import { Wallet, Eye, EyeOff, Loader2 } from 'lucide-react';
 
 export default function HomePage() {
   const router = useRouter();
@@ -15,57 +13,93 @@ export default function HomePage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (getStore().getData().user) {
-      router.replace('/dashboard');
-    }
+    // Check if already logged in
+    apiFetch('/api/auth/me')
+      .then((res) => {
+        if (res.ok) {
+          router.replace('/dashboard');
+        }
+      })
+      .catch(() => {});
   }, [router]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const data = getStore().getData();
-    // For demo, we accept any non-empty credentials and create a simple user if not exists
+    setLoading(true);
+
     if (!email.trim() || !password.trim()) {
       setError('请填写完整信息');
+      setLoading(false);
       return;
     }
-    
-    if (data.user) {
-      if (data.user.email === email.trim() && data.user.password === password) {
-        router.push('/dashboard');
-      } else {
-        setError('邮箱或密码错误');
+
+    try {
+      const res = await apiFetch('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || '登录失败');
+        setLoading(false);
+        return;
       }
-    } else {
-      // First time: auto create user
-      const newUser: User = {
-        id: generateId(),
-        name: email.split('@')[0],
-        email: email.trim(),
-        password,
-      };
-      getStore().setUser(newUser);
+
+      setToken(data.token);
       router.push('/dashboard');
+    } catch {
+      setError('网络错误，请稍后重试');
+      setLoading(false);
     }
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
+
     if (!name.trim() || !email.trim() || !password.trim()) {
       setError('请填写完整信息');
+      setLoading(false);
       return;
     }
-    const newUser: User = {
-      id: generateId(),
-      name: name.trim(),
-      email: email.trim(),
-      password,
-    };
-    getStore().setUser(newUser);
-    router.push('/dashboard');
+
+    if (password.length < 6) {
+      setError('密码长度至少为6位');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const res = await apiFetch('/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim(),
+          password,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || '注册失败');
+        setLoading(false);
+        return;
+      }
+
+      setToken(data.token);
+      router.push('/dashboard');
+    } catch {
+      setError('网络错误，请稍后重试');
+      setLoading(false);
+    }
   };
 
   return (
@@ -78,7 +112,6 @@ export default function HomePage() {
           <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">我的记账本</h1>
           <p className="text-sm text-zinc-500">简洁高效的个人财务管理</p>
         </div>
-
         <div className="bg-white rounded-xl border border-zinc-200 p-6 shadow-sm">
           <div className="flex rounded-lg bg-zinc-100 p-0.5 mb-6">
             <button
@@ -98,7 +131,6 @@ export default function HomePage() {
               注册
             </button>
           </div>
-
           {mode === 'login' ? (
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
@@ -133,8 +165,10 @@ export default function HomePage() {
               {error && <p className="text-sm text-red-600">{error}</p>}
               <button
                 type="submit"
-                className="w-full py-2.5 rounded-lg bg-zinc-900 text-white text-sm font-medium hover:bg-zinc-800 active:bg-zinc-950 transition-colors cursor-pointer"
+                disabled={loading}
+                className="w-full py-2.5 rounded-lg bg-zinc-900 text-white text-sm font-medium hover:bg-zinc-800 active:bg-zinc-950 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
+                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 登录
               </button>
             </form>
@@ -182,16 +216,17 @@ export default function HomePage() {
               {error && <p className="text-sm text-red-600">{error}</p>}
               <button
                 type="submit"
-                className="w-full py-2.5 rounded-lg bg-zinc-900 text-white text-sm font-medium hover:bg-zinc-800 active:bg-zinc-950 transition-colors cursor-pointer"
+                disabled={loading}
+                className="w-full py-2.5 rounded-lg bg-zinc-900 text-white text-sm font-medium hover:bg-zinc-800 active:bg-zinc-950 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
+                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 创建账户
               </button>
             </form>
           )}
         </div>
-
         <p className="text-center text-xs text-zinc-400">
-          数据存储在本地浏览器中，不会上传到服务器
+          基于 JWT 的安全认证系统，数据存储在云端数据库
         </p>
       </div>
     </div>

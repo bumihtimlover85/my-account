@@ -1,26 +1,23 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { getStore } from '@/lib/store';
 import { Transaction, TransactionType } from '@/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import Navbar from '@/components/navbar';
 import TransactionForm from '@/components/transaction-form';
 import { ArrowUpRight, ArrowDownRight, Trash2, Filter, X } from 'lucide-react';
+import { useAuth } from '@/lib/useAuth';
+import { Loader2 } from 'lucide-react';
 
 export default function TransactionsPage() {
-  const router = useRouter();
+  const { loading: authLoading } = useAuth(true);
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [filterType, setFilterType] = useState<TransactionType | 'ALL'>('ALL');
   const [filterCat, setFilterCat] = useState<string>('ALL');
   const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
-    if (!getStore().getData().user) {
-      router.replace('/');
-      return;
-    }
     const update = () => {
       let list = [...getStore().getData().transactions];
       if (filterType !== 'ALL') list = list.filter((t) => t.type === filterType);
@@ -29,11 +26,19 @@ export default function TransactionsPage() {
     };
     update();
     return getStore().subscribe(update);
-  }, [router, filterType, filterCat]);
+  }, [filterType, filterCat]);
 
   const categories = getStore().getData().categories;
   const totalIncome = txs.filter((t) => t.type === 'INCOME').reduce((s, t) => s + t.amount, 0);
   const totalExpense = txs.filter((t) => t.type === 'EXPENSE').reduce((s, t) => s + t.amount, 0);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-full flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-zinc-400" />
+      </div>
+    );
+  }
 
   return (
     <>
@@ -48,7 +53,6 @@ export default function TransactionsPage() {
             {showForm ? '关闭' : '+ 记一笔'}
           </button>
         </div>
-
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2 text-sm text-zinc-500">
             <Filter className="w-4 h-4" />
@@ -82,9 +86,7 @@ export default function TransactionsPage() {
             </button>
           )}
         </div>
-
         {showForm && <TransactionForm onSuccess={() => setShowForm(false)} />}
-
         <div className="bg-white rounded-xl border border-zinc-200 shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-zinc-100 flex items-center justify-between">
             <span className="text-sm text-zinc-500">共 {txs.length} 笔交易</span>
@@ -93,7 +95,6 @@ export default function TransactionsPage() {
               <span className="text-red-600 font-medium">支: {formatCurrency(totalExpense)}</span>
             </div>
           </div>
-
           <div className="divide-y divide-zinc-100">
             {txs.length === 0 && (
               <div className="px-5 py-12 text-center text-zinc-400 text-sm">暂无符合条件的交易</div>

@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, List, Tags, Settings, LogOut, Wallet } from 'lucide-react';
-import { getStore } from '@/lib/store';
-import { useState, useEffect } from 'react';
+import { useAuth } from '@/lib/useAuth';
+import { useState } from 'react';
 
 const navItems = [
   { href: '/dashboard', label: '仪表盘', icon: LayoutDashboard },
@@ -15,17 +15,11 @@ const navItems = [
 
 export default function Navbar() {
   const pathname = usePathname();
-  const [user, setUser] = useState(getStore().getData().user);
+  const { user, logout } = useAuth(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  useEffect(() => {
-    const unsub = getStore().subscribe(() => setUser(getStore().getData().user));
-    return unsub;
-  }, []);
-
   const handleLogout = () => {
-    getStore().setUser(null);
-    window.location.href = '/';
+    logout();
   };
 
   return (
@@ -36,7 +30,6 @@ export default function Navbar() {
             <Wallet className="w-6 h-6 text-blue-600" />
             <span>我的记账本</span>
           </Link>
-
           <nav className="hidden md:flex items-center gap-1">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -55,7 +48,6 @@ export default function Navbar() {
               );
             })}
           </nav>
-
           <div className="hidden md:flex items-center gap-3">
             {user ? (
               <>
@@ -77,7 +69,6 @@ export default function Navbar() {
               </Link>
             )}
           </div>
-
           <button
             className="md:hidden p-2 rounded-lg hover:bg-zinc-100 transition-colors"
             onClick={() => setMobileOpen(!mobileOpen)}
@@ -91,7 +82,6 @@ export default function Navbar() {
             </svg>
           </button>
         </div>
-
         {mobileOpen && (
           <div className="md:hidden border-t border-zinc-200 bg-white">
             {navItems.map((item) => {

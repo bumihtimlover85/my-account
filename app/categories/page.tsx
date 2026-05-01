@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { getStore } from '@/lib/store';
 import { Category, TransactionType } from '@/types';
 import Navbar from '@/components/navbar';
-import { Plus, Trash2, Tag } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
+import { useAuth } from '@/lib/useAuth';
+import { Loader2 } from 'lucide-react';
 
 const PRESET_COLORS = [
   '#DC2626', '#EA580C', '#D97706', '#65A30D', '#16A34A',
@@ -15,7 +16,7 @@ const PRESET_COLORS = [
 ];
 
 export default function CategoriesPage() {
-  const router = useRouter();
+  const { loading: authLoading } = useAuth(true);
   const [cats, setCats] = useState<Category[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState('');
@@ -23,14 +24,10 @@ export default function CategoriesPage() {
   const [color, setColor] = useState(PRESET_COLORS[0]);
 
   useEffect(() => {
-    if (!getStore().getData().user) {
-      router.replace('/');
-      return;
-    }
     const update = () => setCats(getStore().getData().categories);
     update();
     return getStore().subscribe(update);
-  }, [router]);
+  }, []);
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,6 +63,14 @@ export default function CategoriesPage() {
     </div>
   );
 
+  if (authLoading) {
+    return (
+      <div className="min-h-full flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-zinc-400" />
+      </div>
+    );
+  }
+
   return (
     <>
       <Navbar />
@@ -80,7 +85,6 @@ export default function CategoriesPage() {
             新建分类
           </button>
         </div>
-
         {showAdd && (
           <form onSubmit={handleAdd} className="bg-white rounded-xl border border-zinc-200 p-5 shadow-sm space-y-4">
             <div className="flex items-center gap-3">
@@ -118,7 +122,6 @@ export default function CategoriesPage() {
             </div>
           </form>
         )}
-
         <div className="bg-white rounded-xl border border-zinc-200 p-5 shadow-sm space-y-6">
           {renderGroup('收入分类', incomeCats, 'text-green-700')}
           {renderGroup('支出分类', expenseCats, 'text-red-700')}
