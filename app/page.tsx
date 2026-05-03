@@ -1,10 +1,7 @@
 'use client';
-
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getStore } from '@/lib/store';
-import { User } from '@/types';
-import { generateId } from '@/lib/utils';
+import { login, register } from './actions';
 import { Wallet, Eye, EyeOff } from 'lucide-react';
 
 export default function HomePage() {
@@ -15,58 +12,24 @@ export default function HomePage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (getStore().getData().user) {
-      router.replace('/dashboard');
-    }
-  }, [router]);
-
-  const handleLogin = (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    const data = getStore().getData();
-    // For demo, we accept any non-empty credentials and create a simple user if not exists
-    if (!email.trim() || !password.trim()) {
-      setError('请填写完整信息');
-      return;
-    }
-    
-    if (data.user) {
-      if (data.user.email === email.trim() && data.user.password === password) {
-        router.push('/dashboard');
+    setLoading(true);
+    try {
+      if (mode === 'login') {
+        await login({ email, password });
       } else {
-        setError('邮箱或密码错误');
+        await register({ name, email, password });
       }
-    } else {
-      // First time: auto create user
-      const newUser: User = {
-        id: generateId(),
-        name: email.split('@')[0],
-        email: email.trim(),
-        password,
-      };
-      getStore().setUser(newUser);
       router.push('/dashboard');
+    } catch (err: unknown) {
+      setError((err as { message?: string }).message || '操作失败，请重试');
+      setLoading(false);
     }
-  };
-
-  const handleRegister = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    if (!name.trim() || !email.trim() || !password.trim()) {
-      setError('请填写完整信息');
-      return;
-    }
-    const newUser: User = {
-      id: generateId(),
-      name: name.trim(),
-      email: email.trim(),
-      password,
-    };
-    getStore().setUser(newUser);
-    router.push('/dashboard');
-  };
+  }
 
   return (
     <div className="min-h-full flex items-center justify-center px-4 py-12">
@@ -78,7 +41,6 @@ export default function HomePage() {
           <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">我的记账本</h1>
           <p className="text-sm text-zinc-500">简洁高效的个人财务管理</p>
         </div>
-
         <div className="bg-white rounded-xl border border-zinc-200 p-6 shadow-sm">
           <div className="flex rounded-lg bg-zinc-100 p-0.5 mb-6">
             <button
@@ -98,51 +60,12 @@ export default function HomePage() {
               注册
             </button>
           </div>
-
-          {mode === 'login' ? (
-            <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {mode === 'register' && (
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1.5">邮箱</label>
+                <label htmlFor="name" className="block text-sm font-medium text-zinc-700 mb-1.5">昵称</label>
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="w-full px-3 py-2.5 rounded-lg border border-zinc-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1.5">密码</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full px-3 py-2.5 rounded-lg border border-zinc-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 cursor-pointer"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              <button
-                type="submit"
-                className="w-full py-2.5 rounded-lg bg-zinc-900 text-white text-sm font-medium hover:bg-zinc-800 active:bg-zinc-950 transition-colors cursor-pointer"
-              >
-                登录
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleRegister} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1.5">昵称</label>
-                <input
+                  id="name"
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -150,49 +73,50 @@ export default function HomePage() {
                   className="w-full px-3 py-2.5 rounded-lg border border-zinc-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1.5">邮箱</label>
+            )}
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-zinc-700 mb-1.5">邮箱</label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="w-full px-3 py-2.5 rounded-lg border border-zinc-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-zinc-700 mb-1.5">密码</label>
+              <div className="relative">
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="w-full px-3 py-2.5 rounded-lg border border-zinc-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  minLength={6}
+                  className="w-full px-3 py-2.5 rounded-lg border border-zinc-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors pr-10"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 cursor-pointer"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1.5">密码</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full px-3 py-2.5 rounded-lg border border-zinc-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 cursor-pointer"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              <button
-                type="submit"
-                className="w-full py-2.5 rounded-lg bg-zinc-900 text-white text-sm font-medium hover:bg-zinc-800 active:bg-zinc-950 transition-colors cursor-pointer"
-              >
-                创建账户
-              </button>
-            </form>
-          )}
+            </div>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-2.5 rounded-lg bg-zinc-900 text-white text-sm font-medium hover:bg-zinc-800 active:bg-zinc-950 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {loading ? '处理中...' : mode === 'login' ? '登录' : '创建账户'}
+            </button>
+          </form>
         </div>
-
-        <p className="text-center text-xs text-zinc-400">
-          数据存储在本地浏览器中，不会上传到服务器
-        </p>
+        <p className="text-center text-xs text-zinc-400">数据存储在云端数据库中，安全可靠</p>
       </div>
     </div>
   );
