@@ -124,3 +124,11 @@ export function getStore(): Store {
   if (!storeInstance) storeInstance = createStore();
   return storeInstance;
 }
+
+/** Reset the singleton instance. Intended for testing only. */
+export function resetStore() {
+  storeInstance = null;
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+}
