@@ -1,10 +1,9 @@
 'use client';
-
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, List, Tags, Settings, LogOut, Wallet } from 'lucide-react';
-import { getStore } from '@/lib/store';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { logout } from '@/app/actions';
 
 const navItems = [
   { href: '/dashboard', label: '仪表盘', icon: LayoutDashboard },
@@ -13,20 +12,13 @@ const navItems = [
   { href: '/settings', label: '设置', icon: Settings },
 ];
 
-export default function Navbar() {
+interface Props {
+  user: { name: string; email: string } | null;
+}
+
+export default function Navbar({ user }: Props) {
   const pathname = usePathname();
-  const [user, setUser] = useState(getStore().getData().user);
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  useEffect(() => {
-    const unsub = getStore().subscribe(() => setUser(getStore().getData().user));
-    return unsub;
-  }, []);
-
-  const handleLogout = () => {
-    getStore().setUser(null);
-    window.location.href = '/';
-  };
 
   return (
     <>
@@ -36,7 +28,6 @@ export default function Navbar() {
             <Wallet className="w-6 h-6 text-blue-600" />
             <span>我的记账本</span>
           </Link>
-
           <nav className="hidden md:flex items-center gap-1">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -55,13 +46,12 @@ export default function Navbar() {
               );
             })}
           </nav>
-
           <div className="hidden md:flex items-center gap-3">
             {user ? (
               <>
                 <span className="text-sm text-zinc-500">{user.name}</span>
                 <button
-                  onClick={handleLogout}
+                  onClick={() => logout()}
                   className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-red-600 transition-colors cursor-pointer"
                 >
                   <LogOut className="w-4 h-4" />
@@ -77,10 +67,10 @@ export default function Navbar() {
               </Link>
             )}
           </div>
-
           <button
             className="md:hidden p-2 rounded-lg hover:bg-zinc-100 transition-colors"
             onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label="切换菜单"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               {mobileOpen ? (
@@ -91,7 +81,6 @@ export default function Navbar() {
             </svg>
           </button>
         </div>
-
         {mobileOpen && (
           <div className="md:hidden border-t border-zinc-200 bg-white">
             {navItems.map((item) => {
@@ -113,7 +102,7 @@ export default function Navbar() {
             })}
             {user && (
               <button
-                onClick={() => { handleLogout(); setMobileOpen(false); }}
+                onClick={() => { logout(); setMobileOpen(false); }}
                 className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-zinc-50 w-full"
               >
                 <LogOut className="w-4 h-4" />

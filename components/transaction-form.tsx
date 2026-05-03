@@ -1,30 +1,31 @@
 'use client';
-
 import { useState } from 'react';
 import { TransactionType } from '@/types';
-import { getStore } from '@/lib/store';
+import { createTransaction } from '@/app/actions';
 import { Plus, Minus } from 'lucide-react';
+import { Category } from '@prisma/client';
 
 interface Props {
+  categories: Category[];
   onSuccess?: () => void;
 }
 
-export default function TransactionForm({ onSuccess }: Props) {
+export default function TransactionForm({ categories, onSuccess }: Props) {
   const [type, setType] = useState<TransactionType>('EXPENSE');
   const [amount, setAmount] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const categories = getStore().getData().categories.filter((c) => c.type === type);
+  const filteredCategories = categories.filter((c) => c.type === type);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-
     const numAmount = parseFloat(amount);
-    if (!numAmount || numAmount <= 0) {
+    if (!numAmount || numAmount <= 0 || !isFinite(numAmount)) {
       setError('请输入有效的金额');
       return;
     }
@@ -32,21 +33,26 @@ export default function TransactionForm({ onSuccess }: Props) {
       setError('请选择分类');
       return;
     }
-
-    getStore().addTransaction({
-      amount: numAmount,
-      type,
-      categoryId,
-      date,
-      note: note.trim(),
-    });
-
-    setAmount('');
-    setCategoryId('');
-    setNote('');
-    setDate(new Date().toISOString().split('T')[0]);
-    onSuccess?.();
-  };
+    setLoading(true);
+    try {
+      await createTransaction({
+        amount: numAmount,
+        type,
+        categoryId,
+        date,
+        note: note.trim(),
+      });
+      setAmount('');
+      setCategoryId('');
+      setNote('');
+      setDate(new Date().toISOString().split('T')[0]);
+      onSuccess?.();
+    } catch (err: { message?: string }) {
+      setError(err.message || '提交失败');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-zinc-200 p-5 shadow-sm">
@@ -76,11 +82,11 @@ export default function TransactionForm({ onSuccess }: Props) {
           收入
         </button>
       </div>
-
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-zinc-700 mb-1.5">金额</label>
+          <label htmlFor="amount" className="block text-sm font-medium text-zinc-700 mb-1.5">金额</label>
           <input
+            id="amount"
             type="number"
             step="0.01"
             value={amount}
@@ -89,11 +95,10 @@ export default function TransactionForm({ onSuccess }: Props) {
             className="w-full px-3 py-2.5 rounded-lg border border-zinc-300 text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
           />
         </div>
-
         <div>
-          <label className="block text-sm font-medium text-zinc-700 mb-1.5">分类</label>
+          <p className="block text-sm font-medium text-zinc-700 mb-1.5">分类</p>
           <div className="flex flex-wrap gap-2">
-            {categories.map((cat) => (
+            {filteredCategories.map((cat) => (
               <button
                 key={cat.id}
                 type="button"
@@ -110,11 +115,11 @@ export default function TransactionForm({ onSuccess }: Props) {
             ))}
           </div>
         </div>
-
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1.5">日期</label>
+            <label htmlFor="date" className="block text-sm font-medium text-zinc-700 mb-1.5">日期</label>
             <input
+              id="date"
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
@@ -122,8 +127,9 @@ export default function TransactionForm({ onSuccess }: Props) {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1.5">备注</label>
+            <label htmlFor="note" className="block text-sm font-medium text-zinc-700 mb-1.5">备注</label>
             <input
+              id="note"
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
@@ -132,16 +138,13 @@ export default function TransactionForm({ onSuccess }: Props) {
             />
           </div>
         </div>
-
-        {error && (
-          <p className="text-sm text-red-600">{error}</p>
-        )}
-
+        {error && <p className="text-sm text-red-600">{error}</p>}
         <button
           type="submit"
-          className="w-full py-2.5 rounded-lg bg-zinc-900 text-white font-medium text-sm hover:bg-zinc-800 active:bg-zinc-950 transition-colors cursor-pointer"
+          disabled={loading}
+          className="w-full py-2.5 rounded-lg bg-zinc-900 text-white font-medium text-sm hover:bg-zinc-800 active:bg-zinc-950 transition-colors cursor-pointer disabled:opacity-50"
         >
-          记一笔
+          {loading ? '提交中...' : '记一笔'}
         </button>
       </div>
     </form>
