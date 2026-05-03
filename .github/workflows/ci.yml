@@ -26,5 +26,5 @@ jobs:
         run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: 1
-          # Mock DB URL for prisma generate during build (no actual connection needed)
           POSTGRES_PRISMA_URL: postgresql://mock:mock@localhost:5432/mock
+          JWT_SECRET: ci-mock-secret-for-build-only
