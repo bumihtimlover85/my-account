@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { TransactionType } from '@/types';
 import { useStore } from '@/hooks/useStore';
+import { getStore } from '@/lib/store';
 import { Plus, Minus } from 'lucide-react';
 import { formatISO, startOfToday, parseISO, isValid } from 'date-fns';
 
@@ -50,8 +51,6 @@ export default function TransactionForm({ onSuccess }: Props) {
     // Use date-fns formatted date string (YYYY-MM-DD)
     const dateStr = formatISO(parsedDate, { representation: 'date' });
 
-    // Import store dynamically to avoid SSR issues if any
-    import { getStore } from '@/lib/store';
     getStore().addTransaction({
       amount: numAmount,
       type,

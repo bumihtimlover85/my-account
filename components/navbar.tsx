@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { LayoutDashboard, List, Tags, Settings, LogOut, Wallet } from 'lucide-react';
 import { useStore } from '@/hooks/useStore';
+import { getStore } from '@/lib/store';
 
 const navItems = [
   { href: '/dashboard', label: '仪表盘', icon: LayoutDashboard },
@@ -19,7 +20,6 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleLogout = () => {
-    import { getStore } from '@/lib/store';
     getStore().setUser(null);
     window.location.href = '/';
   };

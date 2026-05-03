@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/hooks/useStore';
+import { getStore } from '@/lib/store';
 import { Transaction, TransactionType } from '@/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import Navbar from '@/components/navbar';
@@ -11,18 +12,16 @@ import { ArrowUpRight, ArrowDownRight, Trash2, Filter, X } from 'lucide-react';
 
 export default function TransactionsPage() {
   const router = useRouter();
-  const { transactions, categories } = useStore();
+  const { transactions, categories, user } = useStore();
   const [filterType, setFilterType] = useState<TransactionType | 'ALL'>('ALL');
   const [filterCat, setFilterCat] = useState<string>('ALL');
   const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
-    // Client-side auth guard (kept as-is per issue scope)
-    import { getStore } from '@/lib/store';
-    if (!getStore().getData().user) {
+    if (!user) {
       router.replace('/');
     }
-  }, [router]);
+  }, [user, router]);
 
   const txs: Transaction[] = useMemo(() => {
     let list = [...transactions];
@@ -117,10 +116,7 @@ export default function TransactionsPage() {
                       {isIncome ? '+' : '-'}{formatCurrency(tx.amount)}
                     </span>
                     <button
-                      onClick={() => {
-                        import { getStore } from '@/lib/store';
-                        getStore().deleteTransaction(tx.id);
-                      }}
+                      onClick={() => getStore().deleteTransaction(tx.id)}
                       className="p-1.5 rounded-md text-zinc-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
                       aria-label="删除交易"
                     >

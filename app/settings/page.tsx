@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/hooks/useStore';
+import { getStore } from '@/lib/store';
 import Navbar from '@/components/navbar';
 import { Download, Upload, Trash2, AlertTriangle, User } from 'lucide-react';
 
@@ -14,13 +15,13 @@ export default function SettingsPage() {
   const [showImport, setShowImport] = useState(false);
   const [message, setMessage] = useState('');
 
-  // Client-side guard
-  if (!user && typeof window !== 'undefined') {
-    router.replace('/');
-  }
+  useEffect(() => {
+    if (!user) {
+      router.replace('/');
+    }
+  }, [user, router]);
 
   const handleExport = () => {
-    import { getStore } from '@/lib/store';
     const data = getStore().exportData();
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -35,7 +36,6 @@ export default function SettingsPage() {
 
   const handleImport = () => {
     try {
-      import { getStore } from '@/lib/store';
       getStore().importData(importText);
       setMessage('数据导入成功');
       setImportText('');
@@ -47,7 +47,6 @@ export default function SettingsPage() {
   };
 
   const handleReset = () => {
-    import { getStore } from '@/lib/store';
     getStore().resetData();
     setShowReset(false);
     setMessage('数据已重置');

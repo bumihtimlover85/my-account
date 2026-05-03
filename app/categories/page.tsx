@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/hooks/useStore';
+import { getStore } from '@/lib/store';
 import { TransactionType } from '@/types';
 import Navbar from '@/components/navbar';
 import { Plus, Trash2 } from 'lucide-react';
@@ -22,15 +23,15 @@ export default function CategoriesPage() {
   const [type, setType] = useState<TransactionType>('EXPENSE');
   const [color, setColor] = useState(PRESET_COLORS[0]);
 
-  // Client-side guard
-  if (!user && typeof window !== 'undefined') {
-    router.replace('/');
-  }
+  useEffect(() => {
+    if (!user) {
+      router.replace('/');
+    }
+  }, [user, router]);
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    import { getStore } from '@/lib/store';
     getStore().addCategory({ name: name.trim(), type, color, icon: 'circle' });
     setName('');
     setShowAdd(false);
@@ -51,10 +52,7 @@ export default function CategoriesPage() {
             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color }} />
             <span className="text-sm text-zinc-700">{cat.name}</span>
             <button
-              onClick={() => {
-                import { getStore } from '@/lib/store';
-                getStore().deleteCategory(cat.id);
-              }}
+              onClick={() => getStore().deleteCategory(cat.id)}
               className="p-0.5 rounded text-zinc-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
               aria-label={`删除分类 ${cat.name}`}
             >

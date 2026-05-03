@@ -66,7 +66,7 @@ export default function CategoryChart() {
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value: number) => [`¥${value.toFixed(2)}`, '金额']}
+                formatter={(value: unknown) => [`¥${Number(value ?? 0).toFixed(2)}`, '金额' ]}
                 contentStyle={{ borderRadius: '8px', border: '1px solid #e4e4e7', fontSize: '12px' }}
               />
               <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
