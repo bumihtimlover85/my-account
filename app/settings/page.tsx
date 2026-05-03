@@ -1,29 +1,26 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getStore } from '@/lib/store';
+import { useStore } from '@/hooks/useStore';
 import Navbar from '@/components/navbar';
 import { Download, Upload, Trash2, AlertTriangle, User } from 'lucide-react';
 
 export default function SettingsPage() {
   const router = useRouter();
-  const [user, setUser] = useState(getStore().getData().user);
+  const { user } = useStore();
   const [showReset, setShowReset] = useState(false);
   const [importText, setImportText] = useState('');
   const [showImport, setShowImport] = useState(false);
   const [message, setMessage] = useState('');
 
-  useEffect(() => {
-    if (!getStore().getData().user) {
-      router.replace('/');
-      return;
-    }
-    const unsub = getStore().subscribe(() => setUser(getStore().getData().user));
-    return unsub;
-  }, [router]);
+  // Client-side guard
+  if (!user && typeof window !== 'undefined') {
+    router.replace('/');
+  }
 
   const handleExport = () => {
+    import { getStore } from '@/lib/store';
     const data = getStore().exportData();
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -38,6 +35,7 @@ export default function SettingsPage() {
 
   const handleImport = () => {
     try {
+      import { getStore } from '@/lib/store';
       getStore().importData(importText);
       setMessage('数据导入成功');
       setImportText('');
@@ -49,6 +47,7 @@ export default function SettingsPage() {
   };
 
   const handleReset = () => {
+    import { getStore } from '@/lib/store';
     getStore().resetData();
     setShowReset(false);
     setMessage('数据已重置');
@@ -60,11 +59,9 @@ export default function SettingsPage() {
       <Navbar />
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-6 space-y-6">
         <h1 className="text-xl font-bold text-zinc-900">设置</h1>
-
         {message && (
-          <div className="px-4 py-3 rounded-lg bg-blue-50 text-blue-700 text-sm font-medium">{message}</div>
+          <div className="px-4 py-3 rounded-lg bg-blue-50 text-blue-700 text-sm font-medium" role="status">{message}</div>
         )}
-
         <div className="bg-white rounded-xl border border-zinc-200 p-5 shadow-sm space-y-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center">
@@ -76,10 +73,8 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
-
         <div className="bg-white rounded-xl border border-zinc-200 p-5 shadow-sm space-y-4">
           <h2 className="text-sm font-semibold text-zinc-900">数据管理</h2>
-
           <div className="flex flex-wrap gap-3">
             <button
               onClick={handleExport}
@@ -96,10 +91,11 @@ export default function SettingsPage() {
               导入数据
             </button>
           </div>
-
           {showImport && (
             <div className="space-y-2">
+              <label htmlFor="import-data" className="sr-only">导入 JSON 数据</label>
               <textarea
+                id="import-data"
                 value={importText}
                 onChange={(e) => setImportText(e.target.value)}
                 placeholder="粘贴 JSON 数据..."
@@ -113,7 +109,6 @@ export default function SettingsPage() {
             </div>
           )}
         </div>
-
         <div className="bg-white rounded-xl border border-red-100 p-5 shadow-sm space-y-4">
           <h2 className="text-sm font-semibold text-red-700">危险区域</h2>
           <button
@@ -123,7 +118,6 @@ export default function SettingsPage() {
             <Trash2 className="w-4 h-4" />
             重置所有数据
           </button>
-
           {showReset && (
             <div className="p-4 rounded-lg bg-red-50 space-y-3">
               <div className="flex items-center gap-2 text-red-700 text-sm font-medium">

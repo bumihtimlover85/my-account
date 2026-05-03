@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { TransactionType } from '@/types';
-import { getStore } from '@/lib/store';
+import { useStore } from '@/hooks/useStore';
 import { Plus, Minus } from 'lucide-react';
+import { formatISO, startOfToday, parseISO, isValid } from 'date-fns';
 
 interface Props {
   onSuccess?: () => void;
@@ -13,38 +14,56 @@ export default function TransactionForm({ onSuccess }: Props) {
   const [type, setType] = useState<TransactionType>('EXPENSE');
   const [amount, setAmount] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(formatISO(startOfToday(), { representation: 'date' }));
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
 
-  const categories = getStore().getData().categories.filter((c) => c.type === type);
+  const { categories } = useStore();
+  const filteredCategories = categories.filter((c) => c.type === type);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    const numAmount = parseFloat(amount);
-    if (!numAmount || numAmount <= 0) {
-      setError('请输入有效的金额');
+    const trimmedAmount = amount.trim();
+    if (!/^\d+(\.\d{1,2})?$/.test(trimmedAmount)) {
+      setError('请输入有效的金额（最多两位小数）');
       return;
     }
+    const numAmount = parseFloat(trimmedAmount);
+    if (numAmount <= 0 || numAmount > 999999999) {
+      setError('金额必须大于 0 且小于 10 亿');
+      return;
+    }
+
     if (!categoryId) {
       setError('请选择分类');
       return;
     }
 
+    const parsedDate = parseISO(date);
+    if (!isValid(parsedDate)) {
+      setError('请选择有效日期');
+      return;
+    }
+
+    // Use date-fns formatted date string (YYYY-MM-DD)
+    const dateStr = formatISO(parsedDate, { representation: 'date' });
+
+    // Import store dynamically to avoid SSR issues if any
+    import { getStore } from '@/lib/store';
     getStore().addTransaction({
       amount: numAmount,
       type,
       categoryId,
-      date,
+      date: dateStr,
       note: note.trim(),
     });
 
     setAmount('');
     setCategoryId('');
     setNote('');
-    setDate(new Date().toISOString().split('T')[0]);
+    setDate(formatISO(startOfToday(), { representation: 'date' }));
     onSuccess?.();
   };
 
@@ -76,27 +95,30 @@ export default function TransactionForm({ onSuccess }: Props) {
           收入
         </button>
       </div>
-
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-zinc-700 mb-1.5">金额</label>
+          <label htmlFor="tx-amount" className="block text-sm font-medium text-zinc-700 mb-1.5">金额</label>
           <input
+            id="tx-amount"
             type="number"
             step="0.01"
+            min="0.01"
+            max="999999999"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0.00"
             className="w-full px-3 py-2.5 rounded-lg border border-zinc-300 text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
           />
         </div>
-
         <div>
           <label className="block text-sm font-medium text-zinc-700 mb-1.5">分类</label>
-          <div className="flex flex-wrap gap-2">
-            {categories.map((cat) => (
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="选择分类">
+            {filteredCategories.map((cat) => (
               <button
                 key={cat.id}
                 type="button"
+                role="radio"
+                aria-checked={categoryId === cat.id}
                 onClick={() => setCategoryId(cat.id)}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
                   categoryId === cat.id
@@ -110,11 +132,11 @@ export default function TransactionForm({ onSuccess }: Props) {
             ))}
           </div>
         </div>
-
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1.5">日期</label>
+            <label htmlFor="tx-date" className="block text-sm font-medium text-zinc-700 mb-1.5">日期</label>
             <input
+              id="tx-date"
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
@@ -122,8 +144,9 @@ export default function TransactionForm({ onSuccess }: Props) {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1.5">备注</label>
+            <label htmlFor="tx-note" className="block text-sm font-medium text-zinc-700 mb-1.5">备注</label>
             <input
+              id="tx-note"
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
@@ -132,11 +155,9 @@ export default function TransactionForm({ onSuccess }: Props) {
             />
           </div>
         </div>
-
         {error && (
-          <p className="text-sm text-red-600">{error}</p>
+          <p className="text-sm text-red-600" role="alert">{error}</p>
         )}
-
         <button
           type="submit"
           className="w-full py-2.5 rounded-lg bg-zinc-900 text-white font-medium text-sm hover:bg-zinc-800 active:bg-zinc-950 transition-colors cursor-pointer"

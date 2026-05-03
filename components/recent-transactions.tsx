@@ -1,19 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getStore } from '@/lib/store';
+import { useMemo } from 'react';
+import { useStore } from '@/hooks/useStore';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
 export default function RecentTransactions() {
-  const [txs, setTxs] = useState(getStore().getData().transactions.slice(0, 5));
+  const { transactions, categories } = useStore();
 
-  useEffect(() => {
-    const update = () => setTxs(getStore().getData().transactions.slice(0, 5));
-    return getStore().subscribe(update);
-  }, []);
-
-  const categories = getStore().getData().categories;
+  const txs = useMemo(() => transactions.slice(0, 5), [transactions]);
 
   return (
     <div className="bg-white rounded-xl border border-zinc-200 p-5 shadow-sm">
@@ -21,7 +16,6 @@ export default function RecentTransactions() {
         <h3 className="text-base font-semibold text-zinc-900">最近交易</h3>
         <a href="/transactions" className="text-xs text-blue-600 hover:text-blue-700 font-medium">查看全部 →</a>
       </div>
-
       <div className="space-y-3">
         {txs.length === 0 && (
           <p className="text-sm text-zinc-400 py-6 text-center">暂无交易记录</p>

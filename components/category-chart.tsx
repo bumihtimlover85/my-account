@@ -1,38 +1,34 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { getStore } from '@/lib/store';
+import { useStore } from '@/hooks/useStore';
+
+interface ChartItem {
+  name: string;
+  value: number;
+  color: string;
+}
 
 export default function CategoryChart() {
   const [type, setType] = useState<'EXPENSE' | 'INCOME'>('EXPENSE');
-  const [data, setData] = useState<any[]>([]);
+  const { transactions, categories } = useStore();
 
-  const calc = useMemo(() => () => {
+  const data: ChartItem[] = useMemo(() => {
     const now = new Date();
     const monthStr = now.toISOString().slice(0, 7);
-    const { transactions, categories } = getStore().getData();
     const monthTxs = transactions.filter((t) => t.date.startsWith(monthStr) && t.type === type);
-
     const map = new Map<string, number>();
     monthTxs.forEach((t) => {
       map.set(t.categoryId, (map.get(t.categoryId) || 0) + t.amount);
     });
-
-    const result = Array.from(map.entries())
+    return Array.from(map.entries())
       .map(([catId, value]) => {
         const cat = categories.find((c) => c.id === catId);
         return { name: cat?.name || '未知', value, color: cat?.color || '#999' };
       })
       .sort((a, b) => b.value - a.value);
-
-    setData(result);
-  }, [type]);
-
-  useEffect(() => {
-    calc();
-    return getStore().subscribe(calc);
-  }, [calc]);
+  }, [transactions, categories, type]);
 
   return (
     <div className="bg-white rounded-xl border border-zinc-200 p-5 shadow-sm">
@@ -52,9 +48,8 @@ export default function CategoryChart() {
           ))}
         </div>
       </div>
-
       {data.length > 0 ? (
-        <div className="h-64">
+        <div className="h-64" role="img" aria-label={`${type === 'EXPENSE' ? '支出' : '收入'}分类占比图表`}>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -66,12 +61,12 @@ export default function CategoryChart() {
                 paddingAngle={3}
                 dataKey="value"
               >
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
+                {data.map((entry) => (
+                  <Cell key={entry.name} fill={entry.color} />
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value: any) => [`¥${value.toFixed(2)}`, '金额']}
+                formatter={(value: number) => [`¥${value.toFixed(2)}`, '金额']}
                 contentStyle={{ borderRadius: '8px', border: '1px solid #e4e4e7', fontSize: '12px' }}
               />
               <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />

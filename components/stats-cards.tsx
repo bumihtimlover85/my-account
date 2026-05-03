@@ -1,31 +1,26 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getStore } from '@/lib/store';
+import { useMemo } from 'react';
+import { useStore } from '@/hooks/useStore';
 import { formatCurrency } from '@/lib/utils';
 import { TrendingUp, TrendingDown, Wallet, Calendar } from 'lucide-react';
 
 export default function StatsCards() {
-  const [stats, setStats] = useState({ income: 0, expense: 0, balance: 0, month: '' });
+  const { transactions } = useStore();
 
-  useEffect(() => {
-    const calc = () => {
-      const now = new Date();
-      const monthStr = now.toISOString().slice(0, 7);
-      const { transactions } = getStore().getData();
-      const monthTxs = transactions.filter((t) => t.date.startsWith(monthStr));
-      const income = monthTxs.filter((t) => t.type === 'INCOME').reduce((s, t) => s + t.amount, 0);
-      const expense = monthTxs.filter((t) => t.type === 'EXPENSE').reduce((s, t) => s + t.amount, 0);
-      setStats({
-        income,
-        expense,
-        balance: income - expense,
-        month: now.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' }),
-      });
+  const stats = useMemo(() => {
+    const now = new Date();
+    const monthStr = now.toISOString().slice(0, 7);
+    const monthTxs = transactions.filter((t) => t.date.startsWith(monthStr));
+    const income = monthTxs.filter((t) => t.type === 'INCOME').reduce((s, t) => s + t.amount, 0);
+    const expense = monthTxs.filter((t) => t.type === 'EXPENSE').reduce((s, t) => s + t.amount, 0);
+    return {
+      income,
+      expense,
+      balance: income - expense,
+      month: now.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' }),
     };
-    calc();
-    return getStore().subscribe(calc);
-  }, []);
+  }, [transactions]);
 
   const cards = [
     { label: '本月收入', value: stats.income, icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50' },

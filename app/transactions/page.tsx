@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { getStore } from '@/lib/store';
+import { useStore } from '@/hooks/useStore';
 import { Transaction, TransactionType } from '@/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import Navbar from '@/components/navbar';
@@ -11,27 +11,26 @@ import { ArrowUpRight, ArrowDownRight, Trash2, Filter, X } from 'lucide-react';
 
 export default function TransactionsPage() {
   const router = useRouter();
-  const [txs, setTxs] = useState<Transaction[]>([]);
+  const { transactions, categories } = useStore();
   const [filterType, setFilterType] = useState<TransactionType | 'ALL'>('ALL');
   const [filterCat, setFilterCat] = useState<string>('ALL');
   const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
+    // Client-side auth guard (kept as-is per issue scope)
+    import { getStore } from '@/lib/store';
     if (!getStore().getData().user) {
       router.replace('/');
-      return;
     }
-    const update = () => {
-      let list = [...getStore().getData().transactions];
-      if (filterType !== 'ALL') list = list.filter((t) => t.type === filterType);
-      if (filterCat !== 'ALL') list = list.filter((t) => t.categoryId === filterCat);
-      setTxs(list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-    };
-    update();
-    return getStore().subscribe(update);
-  }, [router, filterType, filterCat]);
+  }, [router]);
 
-  const categories = getStore().getData().categories;
+  const txs: Transaction[] = useMemo(() => {
+    let list = [...transactions];
+    if (filterType !== 'ALL') list = list.filter((t) => t.type === filterType);
+    if (filterCat !== 'ALL') list = list.filter((t) => t.categoryId === filterCat);
+    return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [transactions, filterType, filterCat]);
+
   const totalIncome = txs.filter((t) => t.type === 'INCOME').reduce((s, t) => s + t.amount, 0);
   const totalExpense = txs.filter((t) => t.type === 'EXPENSE').reduce((s, t) => s + t.amount, 0);
 
@@ -48,15 +47,15 @@ export default function TransactionsPage() {
             {showForm ? '关闭' : '+ 记一笔'}
           </button>
         </div>
-
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2 text-sm text-zinc-500">
             <Filter className="w-4 h-4" />
             筛选:
           </div>
           <select
+            id="filter-type"
             value={filterType}
-            onChange={(e) => setFilterType(e.target.value as any)}
+            onChange={(e) => setFilterType(e.target.value as TransactionType | 'ALL')}
             className="px-3 py-1.5 rounded-lg border border-zinc-300 text-sm text-zinc-700 focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">全部类型</option>
@@ -64,6 +63,7 @@ export default function TransactionsPage() {
             <option value="EXPENSE">支出</option>
           </select>
           <select
+            id="filter-cat"
             value={filterCat}
             onChange={(e) => setFilterCat(e.target.value)}
             className="px-3 py-1.5 rounded-lg border border-zinc-300 text-sm text-zinc-700 focus:outline-none focus:border-blue-500"
@@ -82,9 +82,7 @@ export default function TransactionsPage() {
             </button>
           )}
         </div>
-
         {showForm && <TransactionForm onSuccess={() => setShowForm(false)} />}
-
         <div className="bg-white rounded-xl border border-zinc-200 shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-zinc-100 flex items-center justify-between">
             <span className="text-sm text-zinc-500">共 {txs.length} 笔交易</span>
@@ -93,7 +91,6 @@ export default function TransactionsPage() {
               <span className="text-red-600 font-medium">支: {formatCurrency(totalExpense)}</span>
             </div>
           </div>
-
           <div className="divide-y divide-zinc-100">
             {txs.length === 0 && (
               <div className="px-5 py-12 text-center text-zinc-400 text-sm">暂无符合条件的交易</div>
@@ -120,8 +117,12 @@ export default function TransactionsPage() {
                       {isIncome ? '+' : '-'}{formatCurrency(tx.amount)}
                     </span>
                     <button
-                      onClick={() => getStore().deleteTransaction(tx.id)}
+                      onClick={() => {
+                        import { getStore } from '@/lib/store';
+                        getStore().deleteTransaction(tx.id);
+                      }}
                       className="p-1.5 rounded-md text-zinc-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                      aria-label="删除交易"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
