@@ -47,8 +47,8 @@ export default function TransactionForm({ categories, onSuccess }: Props) {
       setNote('');
       setDate(new Date().toISOString().split('T')[0]);
       onSuccess?.();
-    } catch (err: { message?: string }) {
-      setError(err.message || '提交失败');
+    } catch (err: unknown) {
+      setError((err as { message?: string }).message || '提交失败');
     } finally {
       setLoading(false);
     }

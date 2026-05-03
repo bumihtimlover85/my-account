@@ -25,8 +25,8 @@ export default function HomePage() {
         await register({ name, email, password });
       }
       router.push('/dashboard');
-    } catch (err: { message?: string }) {
-      setError(err.message || '操作失败，请重试');
+    } catch (err: unknown) {
+      setError((err as { message?: string }).message || '操作失败，请重试');
       setLoading(false);
     }
   }

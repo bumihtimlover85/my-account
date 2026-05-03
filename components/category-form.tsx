@@ -30,8 +30,8 @@ export default function CategoryForm() {
       await createCategory({ name, type, color });
       setName('');
       setShowAdd(false);
-    } catch (err: { message?: string }) {
-      setError(err.message || '创建失败');
+    } catch (err: unknown) {
+      setError((err as { message?: string }).message || '创建失败');
     } finally {
       setLoading(false);
     }
