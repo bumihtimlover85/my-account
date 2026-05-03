@@ -10,6 +10,10 @@ interface Props {
   onSuccess?: () => void;
 }
 
+function isValidAmount(value: string): boolean {
+  return /^\d+(\.\d{1,2})?$/.test(value.trim());
+}
+
 export default function TransactionForm({ categories, onSuccess }: Props) {
   const [type, setType] = useState<TransactionType>('EXPENSE');
   const [amount, setAmount] = useState('');
@@ -24,9 +28,14 @@ export default function TransactionForm({ categories, onSuccess }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+
+    if (!isValidAmount(amount)) {
+      setError('请输入有效的金额（最多两位小数）');
+      return;
+    }
     const numAmount = parseFloat(amount);
-    if (!numAmount || numAmount <= 0 || !isFinite(numAmount)) {
-      setError('请输入有效的金额');
+    if (numAmount <= 0 || !isFinite(numAmount)) {
+      setError('金额必须大于 0');
       return;
     }
     if (!categoryId) {
@@ -55,10 +64,11 @@ export default function TransactionForm({ categories, onSuccess }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-zinc-200 p-5 shadow-sm">
-      <div className="flex items-center gap-3 mb-5">
+    <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-zinc-200 p-5 shadow-sm" aria-label="记账表单">
+      <div className="flex items-center gap-3 mb-5" role="group" aria-label="交易类型">
         <button
           type="button"
+          aria-pressed={type === 'EXPENSE'}
           onClick={() => { setType('EXPENSE'); setCategoryId(''); }}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
             type === 'EXPENSE'
@@ -71,6 +81,7 @@ export default function TransactionForm({ categories, onSuccess }: Props) {
         </button>
         <button
           type="button"
+          aria-pressed={type === 'INCOME'}
           onClick={() => { setType('INCOME'); setCategoryId(''); }}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
             type === 'INCOME'
@@ -87,21 +98,23 @@ export default function TransactionForm({ categories, onSuccess }: Props) {
           <label htmlFor="amount" className="block text-sm font-medium text-zinc-700 mb-1.5">金额</label>
           <input
             id="amount"
-            type="number"
-            step="0.01"
+            type="text"
+            inputMode="decimal"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0.00"
+            aria-invalid={!!error && error.includes('金额')}
             className="w-full px-3 py-2.5 rounded-lg border border-zinc-300 text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
           />
         </div>
         <div>
-          <p className="block text-sm font-medium text-zinc-700 mb-1.5">分类</p>
-          <div className="flex flex-wrap gap-2">
+          <p id="category-label" className="block text-sm font-medium text-zinc-700 mb-1.5">分类</p>
+          <div className="flex flex-wrap gap-2" role="group" aria-labelledby="category-label">
             {filteredCategories.map((cat) => (
               <button
                 key={cat.id}
                 type="button"
+                aria-pressed={categoryId === cat.id}
                 onClick={() => setCategoryId(cat.id)}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
                   categoryId === cat.id
@@ -138,7 +151,7 @@ export default function TransactionForm({ categories, onSuccess }: Props) {
             />
           </div>
         </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
         <button
           type="submit"
           disabled={loading}

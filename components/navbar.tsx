@@ -71,6 +71,7 @@ export default function Navbar({ user }: Props) {
             className="md:hidden p-2 rounded-lg hover:bg-zinc-100 transition-colors"
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label="切换菜单"
+            aria-expanded={mobileOpen}
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               {mobileOpen ? (
@@ -81,36 +82,38 @@ export default function Navbar({ user }: Props) {
             </svg>
           </button>
         </div>
-        {mobileOpen && (
-          <div className="md:hidden border-t border-zinc-200 bg-white">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const active = pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
-                    active ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-50'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {item.label}
-                </Link>
-              );
-            })}
-            {user && (
-              <button
-                onClick={() => { logout(); setMobileOpen(false); }}
-                className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-zinc-50 w-full"
+        <div
+          className={`md:hidden border-t border-zinc-200 bg-white overflow-hidden transition-all duration-300 ease-in-out ${
+            mobileOpen ? 'max-h-80 opacity-100' : 'max-h-0 opacity-0'
+          }`}
+        >
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const active = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
+                  active ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-50'
+                }`}
               >
-                <LogOut className="w-4 h-4" />
-                退出登录
-              </button>
-            )}
-          </div>
-        )}
+                <Icon className="w-4 h-4" />
+                {item.label}
+              </Link>
+            );
+          })}
+          {user && (
+            <button
+              onClick={() => { logout(); setMobileOpen(false); }}
+              className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-zinc-50 w-full"
+            >
+              <LogOut className="w-4 h-4" />
+              退出登录
+            </button>
+          )}
+        </div>
       </header>
       <div className="h-16" />
     </>
