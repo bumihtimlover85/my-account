@@ -1,6 +1,5 @@
 'use client';
-
-import { AppData, Transaction, Category, User, TransactionType } from '@/types';
+import { AppData, Transaction, Category, User } from '@/types';
 import { generateId } from './utils';
 
 const STORAGE_KEY = 'my-account-data';
@@ -54,13 +53,16 @@ function createStore() {
   let data = getInitialData();
   let listeners: (() => void)[] = [];
 
-  const notify = () => listeners.forEach((l) => l());
+  // FIX: copy array before iterating to avoid closure hazard during unsubscribe
+  const notify = () => listeners.slice().forEach((l) => l());
 
-  return {
+  const api = {
     getData: () => data,
     subscribe: (cb: () => void) => {
       listeners.push(cb);
-      return () => { listeners = listeners.filter((l) => l !== cb); };
+      return () => {
+        listeners = listeners.filter((l) => l !== cb);
+      };
     },
     setUser: (user: User | null) => {
       data = { ...data, user };
@@ -112,9 +114,13 @@ function createStore() {
       notify();
     },
   };
+
+  return api;
 }
 
-export function getStore() {
+export type Store = ReturnType<typeof createStore>;
+
+export function getStore(): Store {
   if (!storeInstance) storeInstance = createStore();
   return storeInstance;
 }
