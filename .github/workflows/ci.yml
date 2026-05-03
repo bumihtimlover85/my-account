@@ -1,35 +1,30 @@
 name: CI
-
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
   lint-and-build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-
       - name: Install dependencies
         run: npm ci
-
       - name: Lint
         run: npm run lint
-
       - name: Build
         run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: 1
+          # Mock DB URL for prisma generate during build (no actual connection needed)
+          POSTGRES_PRISMA_URL: postgresql://mock:mock@localhost:5432/mock
