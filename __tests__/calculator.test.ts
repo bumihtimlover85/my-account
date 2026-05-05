@@ -15,6 +15,10 @@ describe('calculator', () => {
     it('handles floating point numbers', () => {
       expect(add(0.1, 0.2)).toBeCloseTo(0.3);
     });
+
+    it('handles zero', () => {
+      expect(add(0, 0)).toBe(0);
+    });
   });
 
   describe('subtract', () => {
@@ -24,6 +28,10 @@ describe('calculator', () => {
 
     it('handles negative results', () => {
       expect(subtract(3, 5)).toBe(-2);
+    });
+
+    it('handles zero', () => {
+      expect(subtract(0, 0)).toBe(0);
     });
   });
 
@@ -35,6 +43,11 @@ describe('calculator', () => {
     it('handles zero', () => {
       expect(multiply(99, 0)).toBe(0);
     });
+
+    it('handles negative numbers', () => {
+      expect(multiply(-2, 3)).toBe(-6);
+      expect(multiply(-2, -3)).toBe(6);
+    });
   });
 
   describe('divide', () => {
@@ -44,6 +57,10 @@ describe('calculator', () => {
 
     it('throws on division by zero', () => {
       expect(() => divide(10, 0)).toThrow('Division by zero is not allowed');
+    });
+
+    it('handles dividend of zero', () => {
+      expect(divide(0, 5)).toBe(0);
     });
 
     it('handles floating point results', () => {
