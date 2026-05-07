@@ -3,7 +3,7 @@
 > **用途**: 本文件用于 CI/CD 与 PR 流程验证测试。
 > **清理计划**: 测试完成后（即 PR 流程模拟三个回合结束）立即删除此文件。
 > **Purpose**: This file is used for CI/CD and PR workflow verification testing.
-> **Cleanup plan**: This file will be deleted immediately after the test (upon completion of the 3-round PR simulation).
+> **Cleanup plan**: This file will be deleted immediately after the test.
 
 ---
 
