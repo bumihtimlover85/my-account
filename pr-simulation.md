@@ -8,8 +8,8 @@
 此 PR 仅用于模拟 GitHub PR 流程，包括但不限于：
 
 - [x] 代码审查 (Code Review)
-- [ ] 评论/回复 (Comments & Replies)
-- [ ] 请求变更 (Request Changes)
+- [x] 评论/回复 (Comments & Replies)
+- [x] 请求变更 (Request Changes) — 按审查意见，文件名改为 `pr-simulation.md`
 - [ ] 批准 (Approve)
 - [ ] 合并 (Merge)
 
