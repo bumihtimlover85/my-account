@@ -47,3 +47,7 @@ next-env.d.ts
 /playwright/.cache/
 /coverage/
 .env*.local
+
+
+# PR simulation test file (temporary)
+test-pr-simulation.md
