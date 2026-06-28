@@ -1,0 +1,137 @@
+name: Sync Branch Protection
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/**'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install httpx pyyaml
+
+      - name: Sync branch protection contexts
+        env:
+          GH_TOKEN: ${{ secrets.ADMIN_GITHUB_TOKEN }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: |
+          python << 'EOF'
+          import os
+          import sys
+          import httpx
+          import yaml
+          from pathlib import Path
+
+          def extract_job_names():
+              """扫描 .github/workflows 目录，提取所有 job names"""
+              workflows_dir = Path('.github/workflows')
+              job_names = set()
+
+              if not workflows_dir.exists():
+                  print("No workflows directory found")
+                  return []
+
+              for workflow_file in workflows_dir.glob('*.yml'):
+                  try:
+                      with open(workflow_file, 'r', encoding='utf-8') as f:
+                          content = yaml.safe_load(f)
+
+                      if content and 'jobs' in content:
+                          for job_name in content['jobs'].keys():
+                              # 排除同步 workflow 自己的 job
+                              if job_name != 'sync':
+                                  job_names.add(job_name)
+
+                      print(f"Extracted from {workflow_file.name}: {list(content.get('jobs', {}).keys())}")
+                  except Exception as e:
+                      print(f"Warning: Failed to parse {workflow_file.name}: {e}")
+
+              for workflow_file in workflows_dir.glob('*.yaml'):
+                  try:
+                      with open(workflow_file, 'r', encoding='utf-8') as f:
+                          content = yaml.safe_load(f)
+
+                      if content and 'jobs' in content:
+                          for job_name in content['jobs'].keys():
+                              # 排除同步 workflow 自己的 job
+                              if job_name != 'sync':
+                                  job_names.add(job_name)
+
+                      print(f"Extracted from {workflow_file.name}: {list(content.get('jobs', {}).keys())}")
+                  except Exception as e:
+                      print(f"Warning: Failed to parse {workflow_file.name}: {e}")
+
+              return sorted(list(job_names))
+
+          def update_branch_protection(contexts):
+              """更新分支保护的 required status checks contexts"""
+              token = os.environ['GH_TOKEN']
+              owner = os.environ['REPO_OWNER']
+              repo_name = os.environ['REPO_NAME']
+
+              url = f"https://api.github.com/repos/{owner}/{repo_name}/branches/main/protection"
+              headers = {
+                  "Authorization": f"token {token}",
+                  "Accept": "application/vnd.github+json",
+                  "X-GitHub-Api-Version": "2022-11-28"
+              }
+
+              payload = {
+                  "required_status_checks": {
+                      "strict": True,
+                      "contexts": contexts
+                  },
+                  "enforce_admins": False,
+                  "required_pull_request_reviews": {
+                      "required_approving_review_count": 2,
+                      "dismiss_stale_reviews": True,
+                      "require_last_push_approval": True
+                  },
+                  "restrictions": None,
+                  "required_linear_history": False,
+                  "allow_force_pushes": False,
+                  "allow_deletions": False
+              }
+
+              print(f"Updating branch protection with contexts: {contexts}")
+
+              with httpx.Client() as client:
+                  response = client.put(url, json=payload, headers=headers)
+
+                  if response.status_code == 200:
+                      print("✓ Branch protection updated successfully")
+                      return True
+                  else:
+                      print(f"✗ Failed to update branch protection: {response.status_code}")
+                      print(response.text)
+                      return False
+
+          if __name__ == '__main__':
+              print("Scanning workflow files...")
+              job_names = extract_job_names()
+              print(f"Found job names: {job_names}")
+
+              if not job_names:
+                  print("No job names found, skipping update")
+                  sys.exit(0)
+
+              success = update_branch_protection(job_names)
+              sys.exit(0 if success else 1)
+          EOF
