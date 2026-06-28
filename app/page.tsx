@@ -1,11 +1,9 @@
 'use client';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { login, register } from './actions';
 import { Wallet, Eye, EyeOff } from 'lucide-react';
 
 export default function HomePage() {
-  const router = useRouter();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -24,8 +22,11 @@ export default function HomePage() {
       } else {
         await register({ name, email, password });
       }
-      router.push('/dashboard');
     } catch (err: unknown) {
+      // Re-throw Next.js redirect errors so the framework can handle them
+      if (err instanceof Error && (err as any).digest?.startsWith('NEXT_REDIRECT')) {
+        throw err;
+      }
       setError((err as { message?: string }).message || '操作失败，请重试');
       setLoading(false);
     }
