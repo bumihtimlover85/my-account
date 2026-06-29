@@ -5,10 +5,13 @@ name: Deploy
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -33,3 +36,4 @@ jobs:
           VERCEL_ORG_ID: team_wgZ52ilGmid7GdSY7EVLQcvB
           VERCEL_PROJECT_ID: prj_ssLTdGoVzxw4HCJyRED2Szb69KOe
         run: vercel --prod --token "$VERCEL_TOKEN" --yes
+# trigger CI
