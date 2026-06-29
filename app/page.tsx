@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import { login, register } from './actions';
 import { Wallet, Eye, EyeOff } from 'lucide-react';
-
 export default function HomePage() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [name, setName] = useState('');
@@ -11,7 +10,6 @@ export default function HomePage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -23,15 +21,19 @@ export default function HomePage() {
         await register({ name, email, password });
       }
     } catch (err: unknown) {
-      // Re-throw Next.js redirect errors so the framework can handle them
-      if (err instanceof Error && (err as any).digest?.startsWith('NEXT_REDIRECT')) {
+      // Re-throw Next.js redirect errors so the framework can handle navigation
+      if (
+        err instanceof Error &&
+        'digest' in err &&
+        typeof (err as { digest: unknown }).digest === 'string' &&
+        (err as { digest: string }).digest.startsWith('NEXT_REDIRECT')
+      ) {
         throw err;
       }
       setError((err as { message?: string }).message || '操作失败，请重试');
       setLoading(false);
     }
   }
-
   return (
     <div className="min-h-full flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm space-y-6">
