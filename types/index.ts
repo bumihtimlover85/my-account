@@ -1,32 +1,59 @@
-export type TransactionType = 'INCOME' | 'EXPENSE';
-
-export interface Category {
-  id: string;
-  name: string;
-  type: TransactionType;
-  icon: string;
-  color: string;
-}
-
-export interface Transaction {
-  id: string;
-  amount: number;
-  type: TransactionType;
-  categoryId: string;
-  date: string; // ISO date
-  note: string;
-  createdAt: string;
-}
-
 export interface User {
   id: string;
-  name: string;
   email: string;
-  password: string;
+  name?: string | null;
+  image?: string | null;
 }
 
-export interface AppData {
-  user: User | null;
-  transactions: Transaction[];
-  categories: Category[];
+export interface Subtask {
+  id: string;
+  title: string;
+  completed: boolean;
+  cardId: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
+
+export interface Comment {
+  id: string;
+  content: string;
+  cardId: string;
+  userId: string;
+  user: User;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Card {
+  id: string;
+  title: string;
+  description?: string | null;
+  position: number;
+  columnId: string;
+  subtasks: Subtask[];
+  comments: Comment[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Column {
+  id: string;
+  name: string;
+  position: number;
+  boardId: string;
+  cards: Card[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Board {
+  id: string;
+  name: string;
+  description?: string | null;
+  userId: string;
+  columns: Column[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type Priority = 'low' | 'medium' | 'high';

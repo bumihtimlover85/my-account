@@ -1,187 +1,427 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
-import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
-import { signToken, setAuthCookie, clearAuthCookie, getCurrentUser } from '@/lib/auth';
+import { auth, signOut } from '@/lib/auth';
 import { redirect } from 'next/navigation';
+import { hash, compare } from 'bcryptjs';
 
-// ── Auth ──
+// ==================== 认证相关 ====================
 
-export async function register(data: { name: string; email: string; password: string }) {
-  const { name, email, password } = data;
-  if (!name?.trim() || !email?.trim() || !password) throw new Error('请填写完整信息');
-  if (password.length < 6) throw new Error('密码至少 6 位');
+export async function register(email: string, password: string, name?: string) {
+  const existingUser = await prisma.user.findUnique({ where: { email } });
+  if (existingUser) {
+    throw new Error('该邮箱已被注册');
+  }
 
-  const existing = await prisma.user.findUnique({ where: { email: email.trim() } });
-  if (existing) throw new Error('邮箱已被注册');
-
-  const hash = bcrypt.hashSync(password, 10);
+  const hashedPassword = await hash(password, 12);
   const user = await prisma.user.create({
-    data: { name: name.trim(), email: email.trim(), password: hash },
+    data: {
+      email,
+      password: hashedPassword,
+      name: name || null,
+    },
   });
 
-  await prisma.category.createMany({
-    data: [
-      { userId: user.id, name: '工资', type: 'INCOME', icon: 'wallet', color: '#16A34A' },
-      { userId: user.id, name: '奖金', type: 'INCOME', icon: 'gift', color: '#2563EB' },
-      { userId: user.id, name: '投资', type: 'INCOME', icon: 'trending-up', color: '#7C3AED' },
-      { userId: user.id, name: '餐饮', type: 'EXPENSE', icon: 'utensils', color: '#DC2626' },
-      { userId: user.id, name: '交通', type: 'EXPENSE', icon: 'bus', color: '#EA580C' },
-      { userId: user.id, name: '购物', type: 'EXPENSE', icon: 'shopping-bag', color: '#DB2777' },
-      { userId: user.id, name: '娱乐', type: 'EXPENSE', icon: 'gamepad-2', color: '#9333EA' },
-      { userId: user.id, name: '住房', type: 'EXPENSE', icon: 'home', color: '#0D9488' },
-      { userId: user.id, name: '医疗', type: 'EXPENSE', icon: 'heart-pulse', color: '#E11D48' },
-      { userId: user.id, name: '教育', type: 'EXPENSE', icon: 'book-open', color: '#0284C7' },
-    ],
-  });
-
-  const token = signToken(user.id);
-  await setAuthCookie(token);
-  redirect('/dashboard');
+  return user;
 }
 
-export async function login(data: { email: string; password: string }) {
-  const { email, password } = data;
-  if (!email?.trim() || !password) throw new Error('请填写完整信息');
+export async function login(email: string, password: string) {
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) {
+    throw new Error('用户不存在');
+  }
 
-  const user = await prisma.user.findUnique({ where: { email: email.trim() } });
-  if (!user) throw new Error('邮箱或密码错误');
+  const isValid = await compare(password, user.password);
+  if (!isValid) {
+    throw new Error('密码错误');
+  }
 
-  const valid = bcrypt.compareSync(password, user.password);
-  if (!valid) throw new Error('邮箱或密码错误');
-
-  const token = signToken(user.id);
-  await setAuthCookie(token);
-  redirect('/dashboard');
+  return user;
 }
 
 export async function logout() {
-  await clearAuthCookie();
-  redirect('/');
+  await signOut({ redirect: false });
+  redirect('/login');
 }
 
-// ── Transactions ──
+// ==================== 看板相关 ====================
 
-export async function createTransaction(data: {
-  amount: number;
-  type: 'INCOME' | 'EXPENSE';
-  categoryId: string;
-  date: string;
-  note: string;
-}) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('未登录');
+export async function getBoards() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('未登录');
+  }
 
-  const { amount, type, categoryId, date, note } = data;
-  if (!amount || amount <= 0) throw new Error('请输入有效金额');
-  if (!categoryId) throw new Error('请选择分类');
+  return prisma.board.findMany({
+    where: { userId: session.user.id },
+    include: {
+      columns: {
+        include: {
+          cards: {
+            include: {
+              subtasks: true,
+              comments: {
+                include: { user: true },
+                orderBy: { createdAt: 'desc' },
+              },
+            },
+            orderBy: { position: 'asc' },
+          },
+        },
+        orderBy: { position: 'asc' },
+      },
+    },
+    orderBy: { updatedAt: 'desc' },
+  });
+}
 
-  await prisma.transaction.create({
-    data: {
-      userId: user.id,
-      amount,
-      type,
-      categoryId,
-      date: new Date(date),
-      note: note?.trim() || null,
+export async function getBoard(boardId: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('未登录');
+  }
+
+  const board = await prisma.board.findUnique({
+    where: { id: boardId },
+    include: {
+      columns: {
+        include: {
+          cards: {
+            include: {
+              subtasks: true,
+              comments: {
+                include: { user: true },
+                orderBy: { createdAt: 'desc' },
+              },
+            },
+            orderBy: { position: 'asc' },
+          },
+        },
+        orderBy: { position: 'asc' },
+      },
     },
   });
 
-  revalidatePath('/dashboard');
-  revalidatePath('/transactions');
+  if (!board || board.userId !== session.user.id) {
+    throw new Error('看板不存在或无权限访问');
+  }
+
+  return board;
 }
 
-export async function deleteTransaction(id: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('未登录');
+export async function createBoard(data: { name: string; description?: string }) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('未登录');
+  }
 
-  await prisma.transaction.deleteMany({ where: { id, userId: user.id } });
-
-  revalidatePath('/dashboard');
-  revalidatePath('/transactions');
-}
-
-// ── Categories ──
-
-export async function createCategory(data: {
-  name: string;
-  type: 'INCOME' | 'EXPENSE';
-  color: string;
-  icon?: string;
-}) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('未登录');
-
-  const { name, type, color, icon } = data;
-  if (!name?.trim()) throw new Error('请输入分类名称');
-
-  await prisma.category.create({
+  return prisma.board.create({
     data: {
-      userId: user.id,
-      name: name.trim(),
-      type,
-      color,
-      icon: icon || 'circle',
+      name: data.name,
+      description: data.description,
+      userId: session.user.id,
+      columns: {
+        create: [
+          { name: '待办', position: 0 },
+          { name: '进行中', position: 1 },
+          { name: '已完成', position: 2 },
+        ],
+      },
+    },
+    include: {
+      columns: true,
+    },
+  });
+}
+
+export async function updateBoard(boardId: string, data: { name?: string; description?: string }) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('未登录');
+  }
+
+  const board = await prisma.board.findUnique({ where: { id: boardId } });
+  if (!board || board.userId !== session.user.id) {
+    throw new Error('看板不存在或无权限访问');
+  }
+
+  return prisma.board.update({
+    where: { id: boardId },
+    data,
+  });
+}
+
+export async function deleteBoard(boardId: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('未登录');
+  }
+
+  const board = await prisma.board.findUnique({ where: { id: boardId } });
+  if (!board || board.userId !== session.user.id) {
+    throw new Error('看板不存在或无权限访问');
+  }
+
+  return prisma.board.delete({ where: { id: boardId } });
+}
+
+// ==================== 列相关 ====================
+
+export async function createColumn(data: { name: string; boardId: string }) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('未登录');
+  }
+
+  const maxPosition = await prisma.column.aggregate({
+    where: { boardId: data.boardId },
+    _max: { position: true },
+  });
+
+  return prisma.column.create({
+    data: {
+      name: data.name,
+      boardId: data.boardId,
+      position: (maxPosition._max.position ?? -1) + 1,
+    },
+  });
+}
+
+export async function updateColumn(columnId: string, data: { name?: string; position?: number }) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('未登录');
+  }
+
+  return prisma.column.update({
+    where: { id: columnId },
+    data,
+  });
+}
+
+export async function deleteColumn(columnId: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('未登录');
+  }
+
+  return prisma.column.delete({ where: { id: columnId } });
+}
+
+export async function updateColumnsOrder(columns: { id: string; position: number }[]) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('未登录');
+  }
+
+  const updates = columns.map((col) =>
+    prisma.column.update({
+      where: { id: col.id },
+      data: { position: col.position },
+    })
+  );
+
+  return prisma.$transaction(updates);
+}
+
+// ==================== 卡片相关 ====================
+
+export async function createCard(data: { title: string; columnId: string; description?: string }) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('未登录');
+  }
+
+  const maxPosition = await prisma.card.aggregate({
+    where: { columnId: data.columnId },
+    _max: { position: true },
+  });
+
+  return prisma.card.create({
+    data: {
+      title: data.title,
+      description: data.description,
+      columnId: data.columnId,
+      position: (maxPosition._max.position ?? -1) + 1,
+    },
+  });
+}
+
+export async function updateCard(cardId: string, data: { title?: string; description?: string }) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('未登录');
+  }
+
+  return prisma.card.update({
+    where: { id: cardId },
+    data,
+  });
+}
+
+export async function deleteCard(cardId: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('未登录');
+  }
+
+  return prisma.card.delete({ where: { id: cardId } });
+}
+
+export async function moveCard(cardId: string, targetColumnId: string, position: number) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('未登录');
+  }
+
+  return prisma.card.update({
+    where: { id: cardId },
+    data: {
+      columnId: targetColumnId,
+      position,
+    },
+  });
+}
+
+export async function updateCardsOrder(cards: { id: string; position: number; columnId: string }[]) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('未登录');
+  }
+
+  const updates = cards.map((card) =>
+    prisma.card.update({
+      where: { id: card.id },
+      data: {
+        position: card.position,
+        columnId: card.columnId,
+      },
+    })
+  );
+
+  return prisma.$transaction(updates);
+}
+
+// ==================== 子任务相关 ====================
+
+export async function createSubtask(data: { title: string; cardId: string }) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('未登录');
+  }
+
+  return prisma.subtask.create({
+    data: {
+      title: data.title,
+      cardId: data.cardId,
+    },
+  });
+}
+
+export async function updateSubtask(subtaskId: string, data: { title?: string; completed?: boolean }) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('未登录');
+  }
+
+  return prisma.subtask.update({
+    where: { id: subtaskId },
+    data,
+  });
+}
+
+export async function deleteSubtask(subtaskId: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('未登录');
+  }
+
+  return prisma.subtask.delete({ where: { id: subtaskId } });
+}
+
+// ==================== 评论相关 ====================
+
+export async function createComment(data: { content: string; cardId: string }) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('未登录');
+  }
+
+  return prisma.comment.create({
+    data: {
+      content: data.content,
+      cardId: data.cardId,
+      userId: session.user.id,
+    },
+  });
+}
+
+export async function deleteComment(commentId: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('未登录');
+  }
+
+  const comment = await prisma.comment.findUnique({ where: { id: commentId } });
+  if (!comment || comment.userId !== session.user.id) {
+    throw new Error('评论不存在或无权限删除');
+  }
+
+  return prisma.comment.delete({ where: { id: commentId } });
+}
+
+// ==================== 用户相关 ====================
+
+export async function getCurrentUser() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return null;
+  }
+
+  return prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      image: true,
+    },
+  });
+}
+
+export async function exportData() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('未登录');
+  }
+
+  const boards = await prisma.board.findMany({
+    where: { userId: session.user.id },
+    include: {
+      columns: {
+        include: {
+          cards: {
+            include: {
+              subtasks: true,
+              comments: true,
+            },
+          },
+        },
+      },
     },
   });
 
-  revalidatePath('/categories');
-  revalidatePath('/dashboard');
-  revalidatePath('/transactions');
+  return JSON.stringify(boards, null, 2);
 }
 
-export async function deleteCategory(id: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('未登录');
+export async function resetData() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('未登录');
+  }
 
-  await prisma.category.deleteMany({ where: { id, userId: user.id } });
-
-  revalidatePath('/categories');
-  revalidatePath('/dashboard');
-  revalidatePath('/transactions');
-}
-
-// ── Settings ──
-
-export async function exportUserData() {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('未登录');
-
-  const [transactions, categories] = await Promise.all([
-    prisma.transaction.findMany({ where: { userId: user.id }, orderBy: { date: 'desc' } }),
-    prisma.category.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'asc' } }),
-  ]);
-
-  return { user: { name: user.name, email: user.email }, transactions, categories };
-}
-
-export async function resetUserData() {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('未登录');
-
-  await prisma.$transaction([
-    prisma.transaction.deleteMany({ where: { userId: user.id } }),
-    prisma.category.deleteMany({ where: { userId: user.id } }),
-  ]);
-
-  await prisma.category.createMany({
-    data: [
-      { userId: user.id, name: '工资', type: 'INCOME', icon: 'wallet', color: '#16A34A' },
-      { userId: user.id, name: '奖金', type: 'INCOME', icon: 'gift', color: '#2563EB' },
-      { userId: user.id, name: '投资', type: 'INCOME', icon: 'trending-up', color: '#7C3AED' },
-      { userId: user.id, name: '餐饮', type: 'EXPENSE', icon: 'utensils', color: '#DC2626' },
-      { userId: user.id, name: '交通', type: 'EXPENSE', icon: 'bus', color: '#EA580C' },
-      { userId: user.id, name: '购物', type: 'EXPENSE', icon: 'shopping-bag', color: '#DB2777' },
-      { userId: user.id, name: '娱乐', type: 'EXPENSE', icon: 'gamepad-2', color: '#9333EA' },
-      { userId: user.id, name: '住房', type: 'EXPENSE', icon: 'home', color: '#0D9488' },
-      { userId: user.id, name: '医疗', type: 'EXPENSE', icon: 'heart-pulse', color: '#E11D48' },
-      { userId: user.id, name: '教育', type: 'EXPENSE', icon: 'book-open', color: '#0284C7' },
-    ],
+  // 删除用户所有看板（级联删除所有相关内容）
+  await prisma.board.deleteMany({
+    where: { userId: session.user.id },
   });
-
-  revalidatePath('/dashboard');
-  revalidatePath('/transactions');
-  revalidatePath('/categories');
-  revalidatePath('/settings');
 }
