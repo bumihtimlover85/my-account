@@ -1,13 +1,13 @@
-import { getUserFromCookie } from '@/lib/auth';
+import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import Navbar from '@/components/navbar';
 import KanbanBoard from '@/components/kanban-board';
 
 export default async function Home() {
-  const user = await getUserFromCookie();
+  const user = await getCurrentUser();
   if (!user) redirect('/login');
-
+  
   const cards = await prisma.card.findMany({
     where: { userId: user.id },
     include: { subtasks: true, comments: { include: { user: true } } },

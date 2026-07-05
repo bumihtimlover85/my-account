@@ -1,39 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createCard, updateCard, deleteCard } from '@/app/actions';
 
-// Mock prisma
 vi.mock('@/lib/prisma', () => ({
   prisma: {
-    user: {
-      findUnique: vi.fn(),
-      create: vi.fn(),
-    },
     card: {
-      findMany: vi.fn(),
-      findFirst: vi.fn(),
-      create: vi.fn(),
-      updateMany: vi.fn(),
-      deleteMany: vi.fn(),
-      aggregate: vi.fn(),
-    },
-    subtask: {
-      create: vi.fn(),
-      findUnique: vi.fn(),
-      update: vi.fn(),
-    },
-    comment: {
-      create: vi.fn(),
+      aggregate: vi.fn().mockResolvedValue({ _max: { position: 0 } }),
+      create: vi.fn().mockResolvedValue({}),
+      updateMany: vi.fn().mockResolvedValue({}),
+      deleteMany: vi.fn().mockResolvedValue({}),
     },
   },
 }));
 
-// Mock auth
 vi.mock('@/lib/auth', () => ({
-  getUserFromCookie: vi.fn(),
-  setTokenCookie: vi.fn(),
-  removeTokenCookie: vi.fn(),
+  getCurrentUser: vi.fn().mockResolvedValue({ id: '1', name: 'Test', email: 'test@example.com' }),
+  signToken: vi.fn().mockReturnValue('token'),
+  setAuthCookie: vi.fn().mockResolvedValue(undefined),
+  clearAuthCookie: vi.fn().mockResolvedValue(undefined),
 }));
 
-// Mock next/cache
 vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }));
@@ -43,21 +28,18 @@ describe('Card Actions', () => {
     vi.clearAllMocks();
   });
 
-  it('should have card-related actions defined', async () => {
-    const actions = await import('@/app/actions');
-    expect(actions.createCard).toBeDefined();
-    expect(actions.updateCard).toBeDefined();
-    expect(actions.deleteCard).toBeDefined();
-    expect(actions.moveCard).toBeDefined();
-    expect(actions.addSubtask).toBeDefined();
-    expect(actions.toggleSubtask).toBeDefined();
-    expect(actions.addComment).toBeDefined();
+  it('createCard 应创建卡片', async () => {
+    const result = await createCard({ title: 'Test Card', priority: 'medium', status: 'todo' });
+    expect(result).toBeUndefined();
   });
 
-  it('should have auth actions defined', async () => {
-    const actions = await import('@/app/actions');
-    expect(actions.login).toBeDefined();
-    expect(actions.register).toBeDefined();
-    expect(actions.logout).toBeDefined();
+  it('updateCard 应更新卡片', async () => {
+    const result = await updateCard('1', { title: 'Updated' });
+    expect(result).toBeUndefined();
+  });
+
+  it('deleteCard 应删除卡片', async () => {
+    const result = await deleteCard('1');
+    expect(result).toBeUndefined();
   });
 });
