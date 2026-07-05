@@ -3,10 +3,10 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser, signToken, setAuthCookie, clearAuthCookie } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
 import { revalidatePath } from 'next/cache';
-
 const VALID_STATUSES = ['todo', 'in_progress', 'testing', 'done'] as const;
 const VALID_PRIORITIES = ['high', 'medium', 'low'] as const;
-
+type ValidStatus = typeof VALID_STATUSES[number];
+type ValidPriority = typeof VALID_PRIORITIES[number];
 // Auth actions
 export async function register(name: string, email: string, password: string) {
   try {
@@ -19,11 +19,10 @@ export async function register(name: string, email: string, password: string) {
     const token = signToken(user.id);
     await setAuthCookie(token);
     return { success: true };
-  } catch (error) {
+  } catch {
     return { error: '注册失败，请重试' };
   }
 }
-
 export async function login(email: string, password: string) {
   try {
     const user = await prisma.user.findUnique({ where: { email } });
@@ -33,24 +32,22 @@ export async function login(email: string, password: string) {
     const token = signToken(user.id);
     await setAuthCookie(token);
     return { success: true };
-  } catch (error) {
+  } catch {
     return { error: '登录失败，请重试' };
   }
 }
-
 export async function logout() {
   await clearAuthCookie();
 }
-
 // Card actions
 export async function createCard(data: { title: string; description?: string; priority: string; status: string }) {
   const user = await getCurrentUser();
   if (!user) throw new Error('未登录');
   
-  if (!VALID_STATUSES.includes(data.status as any)) {
+  if (!VALID_STATUSES.includes(data.status as ValidStatus)) {
     throw new Error('无效的状态值');
   }
-  if (!VALID_PRIORITIES.includes(data.priority as any)) {
+  if (!VALID_PRIORITIES.includes(data.priority as ValidPriority)) {
     throw new Error('无效的优先级值');
   }
   
@@ -70,15 +67,14 @@ export async function createCard(data: { title: string; description?: string; pr
   });
   revalidatePath('/');
 }
-
 export async function updateCard(id: string, data: { title?: string; description?: string; priority?: string; status?: string }) {
   const user = await getCurrentUser();
   if (!user) throw new Error('未登录');
   
-  if (data.status && !VALID_STATUSES.includes(data.status as any)) {
+  if (data.status && !VALID_STATUSES.includes(data.status as ValidStatus)) {
     throw new Error('无效的状态值');
   }
-  if (data.priority && !VALID_PRIORITIES.includes(data.priority as any)) {
+  if (data.priority && !VALID_PRIORITIES.includes(data.priority as ValidPriority)) {
     throw new Error('无效的优先级值');
   }
   
@@ -88,19 +84,17 @@ export async function updateCard(id: string, data: { title?: string; description
   });
   revalidatePath('/');
 }
-
 export async function deleteCard(id: string) {
   const user = await getCurrentUser();
   if (!user) throw new Error('未登录');
   await prisma.card.deleteMany({ where: { id, userId: user.id } });
   revalidatePath('/');
 }
-
 export async function moveCard(id: string, status: string, position: number) {
   const user = await getCurrentUser();
   if (!user) throw new Error('未登录');
   
-  if (!VALID_STATUSES.includes(status as any)) {
+  if (!VALID_STATUSES.includes(status as ValidStatus)) {
     throw new Error('无效的状态值');
   }
   
@@ -110,7 +104,6 @@ export async function moveCard(id: string, status: string, position: number) {
   });
   revalidatePath('/');
 }
-
 // Subtask actions
 export async function addSubtask(cardId: string, title: string) {
   const user = await getCurrentUser();
@@ -120,7 +113,6 @@ export async function addSubtask(cardId: string, title: string) {
   await prisma.subtask.create({ data: { title, cardId } });
   revalidatePath('/');
 }
-
 export async function toggleSubtask(id: string) {
   const user = await getCurrentUser();
   if (!user) throw new Error('未登录');
@@ -138,7 +130,6 @@ export async function toggleSubtask(id: string) {
   });
   revalidatePath('/');
 }
-
 // Comment actions
 export async function addComment(cardId: string, content: string) {
   const user = await getCurrentUser();

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -11,40 +11,37 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import { arrayMove } from '@dnd-kit/sortable';
 import { Card, COLUMNS } from '@/types';
 import KanbanColumn from './kanban-column';
 import KanbanCard from './kanban-card';
 import CardModal from './card-modal';
 import AddCardModal from './add-card-modal';
 import { moveCard } from '@/app/actions';
-
 interface KanbanBoardProps {
   initialCards: Card[];
 }
-
 export default function KanbanBoard({ initialCards }: KanbanBoardProps) {
   const [cards, setCards] = useState<Card[]>(initialCards);
   const [activeCard, setActiveCard] = useState<Card | null>(null);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [addCardStatus, setAddCardStatus] = useState<string | null>(null);
   const cardsRef = useRef(cards);
-  cardsRef.current = cards;
-
+  
+  useEffect(() => {
+    cardsRef.current = cards;
+  }, [cards]);
+  
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
-
   const getCardsByStatus = useCallback(
     (status: string) => cards.filter((c) => c.status === status).sort((a, b) => a.position - b.position),
     [cards]
   );
-
   const handleDragStart = (event: DragStartEvent) => {
     const card = cards.find((c) => c.id === event.active.id);
     if (card) setActiveCard(card);
   };
-
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
     if (!over) return;
@@ -66,7 +63,6 @@ export default function KanbanBoard({ initialCards }: KanbanBoardProps) {
       );
     }
   };
-
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveCard(null);
@@ -74,8 +70,6 @@ export default function KanbanBoard({ initialCards }: KanbanBoardProps) {
     const activeId = active.id as string;
     const overId = over.id as string;
     if (activeId === overId) return;
-
-    // Use functional update to get latest state
     let finalStatus = '';
     let finalPosition = 0;
     
@@ -99,17 +93,13 @@ export default function KanbanBoard({ initialCards }: KanbanBoardProps) {
         return c;
       });
     });
-
-    // Persist to server with correct position
     await moveCard(activeId, finalStatus, Math.max(0, finalPosition));
   };
-
   const handleRefresh = async () => {
     const res = await fetch('/api/cards');
     const data = await res.json();
     setCards(data);
   };
-
   return (
     <>
       <DndContext
