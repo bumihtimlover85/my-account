@@ -8,45 +8,47 @@ datasource db {
 }
 
 model User {
-  id            String        @id @default(uuid())
-  email         String        @unique
-  name          String
-  password      String
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  transactions  Transaction[]
-  categories    Category[]
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  cards     Card[]
+  comments  Comment[]
 }
 
-model Category {
-  id            String        @id @default(uuid())
-  userId        String
-  name          String
-  type          String
-  icon          String        @default("circle")
-  color         String
-  createdAt     DateTime      @default(now())
-
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions  Transaction[]
-
-  @@unique([userId, name, type])
+model Card {
+  id          String      @id @default(uuid())
+  title       String
+  description String?
+  status      String      @default("todo") // todo | in_progress | testing | done
+  priority    String      @default("medium") // high | medium | low
+  position    Int         @default(0)
+  userId      String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subtasks    Subtask[]
+  comments    Comment[]
+  @@index([status])
+  @@index([userId])
 }
 
-model Transaction {
-  id         String   @id @default(uuid())
-  userId     String
-  amount     Decimal  @db.Decimal(12, 2)
-  type       String
-  categoryId String
-  date       DateTime @db.Date
-  note       String?
-  createdAt  DateTime @default(now())
+model Subtask {
+  id        String  @id @default(uuid())
+  title     String
+  completed Boolean @default(false)
+  cardId    String
+  card      Card    @relation(fields: [cardId], references: [id], onDelete: Cascade)
+}
 
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-
-  @@index([userId, date])
-  @@index([userId, type])
-  @@index([categoryId])
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  userId    String
+  cardId    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card      Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
 }

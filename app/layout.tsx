@@ -1,19 +1,15 @@
-import type { Metadata } from "next";
-import "./globals.css";
+import type { Metadata } from 'next';
+import './globals.css';
 
 export const metadata: Metadata = {
-  title: "我的记账本",
-  description: "简洁高效的个人记账工具",
+  title: '项目看板 - 团队任务管理',
+  description: '多人协同的项目管理看板',
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-CN" className="h-full antialiased">
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="zh-CN">
+      <body className="bg-gray-50">{children}</body>
     </html>
   );
 }
