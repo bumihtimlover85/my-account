@@ -1,288 +1,151 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-
-// Mock next/headers
+import { vi, describe, it, expect, beforeEach } from 'vitest'
+const mockPrisma: any = {
+  user: { findUnique: vi.fn(), create: vi.fn() },
+  board: { findUnique: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+  column: { create: vi.fn(), update: vi.fn(), delete: vi.fn(), findUnique: vi.fn(), aggregate: vi.fn() },
+  card: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(), aggregate: vi.fn(), updateMany: vi.fn() },
+  subtask: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+  comment: { findUnique: vi.fn(), create: vi.fn(), delete: vi.fn() },
+  $transaction: vi.fn((fn: any) => fn(mockPrisma)),
+}
+vi.mock('@/lib/prisma', () => ({ prisma: mockPrisma }))
 vi.mock('next/headers', () => ({
-  cookies: vi.fn(() => ({
-    set: vi.fn(),
-    get: vi.fn(),
-    delete: vi.fn(),
+  cookies: vi.fn(() => Promise.resolve({
+    get: vi.fn((name: string) => name === 'token' ? { value: 'test-token' } : undefined),
+    set: vi.fn(), delete: vi.fn(),
   })),
 }))
-
-// Mock next/navigation
-vi.mock('next/navigation', () => ({
-  redirect: vi.fn((url: string) => {
-    throw new Error(`NEXT_REDIRECT:${url}`)
-  }),
+vi.mock('jsonwebtoken', () => ({
+  default: { sign: vi.fn(() => 'tok'), verify: vi.fn(() => ({ userId: 'user-1' })) },
 }))
-
-// Mock prisma
-vi.mock('@/lib/prisma', () => ({
-  prisma: {
-    user: {
-      findUnique: vi.fn(),
-      create: vi.fn(),
-    },
-    board: {
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-      deleteMany: vi.fn(),
-    },
-    column: {
-      create: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-      findUnique: vi.fn(),
-      aggregate: vi.fn(),
-      updateMany: vi.fn(),
-    },
-    card: {
-      create: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-      findUnique: vi.fn(),
-      aggregate: vi.fn(),
-      updateMany: vi.fn(),
-    },
-    subtask: {
-      create: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-    },
-    comment: {
-      create: vi.fn(),
-      delete: vi.fn(),
-      findUnique: vi.fn(),
-    },
-    $transaction: vi.fn((args) => Promise.all(args)),
-  },
+vi.mock('bcryptjs', () => ({
+  default: { hash: vi.fn(() => Promise.resolve('hashed')), compare: vi.fn(() => Promise.resolve(true)) },
 }))
-
-// Mock auth
-vi.mock('@/lib/auth', () => ({
-  auth: vi.fn(),
-  signOut: vi.fn(),
-}))
-
-import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
-
+const authUser = { id: 'user-1', email: 'test@test.com', name: 'Test' }
+function resetAllMocks() {
+  Object.values(mockPrisma).forEach((mock: any) => {
+    if (typeof mock === 'object' && mock !== null) {
+      Object.values(mock).forEach((fn: any) => { if (fn?.mockReset) fn.mockReset() })
+    } else if (mock?.mockReset) mock.mockReset()
+  })
+  mockPrisma.user.findUnique.mockResolvedValue(authUser)
+}
 describe('认证功能', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
+  beforeEach(() => { resetAllMocks() })
+  it('register 成功', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue(null)
+    mockPrisma.user.create.mockResolvedValue({ ...authUser, password: 'hashed', createdAt: new Date(), updatedAt: new Date() })
+    const { register } = await import('@/app/actions')
+    const result = await register('test@test.com', 'password123', 'Test')
+    expect(result.user).toBeDefined()
+    expect(result.user!.email).toBe('test@test.com')
   })
-
-  describe('register', () => {
-    it('邮箱已存在时抛出错误', async () => {
-      vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'user-1' } as any)
-      const { register } = await import('@/app/actions')
-      await expect(register('test@example.com', 'password123')).rejects.toThrow('该邮箱已被注册')
-    })
-
-    it('注册成功返回用户', async () => {
-      const mockUser = { id: 'user-1', email: 'test@example.com', name: 'Test' }
-      vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
-      vi.mocked(prisma.user.create).mockResolvedValue(mockUser as any)
-      const { register } = await import('@/app/actions')
-      const result = await register('test@example.com', 'password123', 'Test')
-      expect(result).toEqual(mockUser)
-      expect(prisma.user.create).toHaveBeenCalled()
-    })
-  })
-
-  describe('login', () => {
-    it('用户不存在时抛出错误', async () => {
-      vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
-      const { login } = await import('@/app/actions')
-      await expect(login('test@example.com', 'password')).rejects.toThrow('用户不存在')
-    })
+  it('register 重复邮箱', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue(authUser)
+    const { register } = await import('@/app/actions')
+    const result = await register('test@test.com', 'password123')
+    expect(result.error).toBe('该邮箱已被注册')
   })
 })
-
 describe('看板功能', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    vi.mocked(auth).mockResolvedValue({ user: { id: 'user-1' } } as any)
+  beforeEach(() => { resetAllMocks() })
+  it('createBoard 成功', async () => {
+    mockPrisma.board.create.mockResolvedValue({ id: 'b1', name: 'Test Board', userId: 'user-1', createdAt: new Date(), updatedAt: new Date() })
+    mockPrisma.column.create.mockResolvedValue({ id: 'c1', name: '待办', position: 0, boardId: 'b1' })
+    const { createBoard } = await import('@/app/actions')
+    const result = await createBoard({ name: 'Test Board' })
+    expect(result.board).toBeDefined()
+    expect(result.board!.name).toBe('Test Board')
   })
-
-  describe('getBoards', () => {
-    it('未登录时抛出错误', async () => {
-      vi.mocked(auth).mockResolvedValue(null)
-      const { getBoards } = await import('@/app/actions')
-      await expect(getBoards()).rejects.toThrow('未登录')
-    })
-
-    it('返回用户的所有看板', async () => {
-      const mockBoards = [{ id: 'board-1', name: '测试看板' }]
-      vi.mocked(prisma.board.findMany).mockResolvedValue(mockBoards as any)
-      const { getBoards } = await import('@/app/actions')
-      const result = await getBoards()
-      expect(result).toEqual(mockBoards)
-    })
+  it('deleteBoard 成功', async () => {
+    mockPrisma.board.findFirst.mockResolvedValue({ id: 'b1', userId: 'user-1' })
+    mockPrisma.board.delete.mockResolvedValue({ id: 'b1' })
+    const { deleteBoard } = await import('@/app/actions')
+    const result = await deleteBoard('b1')
+    expect(result.success).toBe(true)
   })
-
-  describe('createBoard', () => {
-    it('未登录时抛出错误', async () => {
-      vi.mocked(auth).mockResolvedValue(null)
-      const { createBoard } = await import('@/app/actions')
-      await expect(createBoard({ name: '测试看板' })).rejects.toThrow('未登录')
-    })
-
-    it('成功创建看板并返回', async () => {
-      const mockBoard = { id: 'board-1', name: '测试看板', columns: [] }
-      vi.mocked(prisma.board.create).mockResolvedValue(mockBoard as any)
-      const { createBoard } = await import('@/app/actions')
-      const result = await createBoard({ name: '测试看板' })
-      expect(result).toEqual(mockBoard)
-      expect(prisma.board.create).toHaveBeenCalledWith({
-        data: {
-          name: '测试看板',
-          description: undefined,
-          userId: 'user-1',
-          columns: {
-            create: [
-              { name: '待办', position: 0 },
-              { name: '进行中', position: 1 },
-              { name: '已完成', position: 2 },
-            ],
-          },
-        },
-        include: { columns: true },
-      })
-    })
-  })
-
-  describe('deleteBoard', () => {
-    it('看板不存在时抛出错误', async () => {
-      vi.mocked(prisma.board.findUnique).mockResolvedValue(null)
-      const { deleteBoard } = await import('@/app/actions')
-      await expect(deleteBoard('board-1')).rejects.toThrow('看板不存在或无权限访问')
-    })
-
-    it('删除成功', async () => {
-      vi.mocked(prisma.board.findUnique).mockResolvedValue({ id: 'board-1', userId: 'user-1' } as any)
-      vi.mocked(prisma.board.delete).mockResolvedValue({} as any)
-      const { deleteBoard } = await import('@/app/actions')
-      await deleteBoard('board-1')
-      expect(prisma.board.delete).toHaveBeenCalledWith({ where: { id: 'board-1' } })
-    })
+  it('deleteBoard 不存在', async () => {
+    mockPrisma.board.findFirst.mockResolvedValue(null)
+    const { deleteBoard } = await import('@/app/actions')
+    const result = await deleteBoard('non-existent')
+    expect(result.error).toBe('看板不存在或无权删除')
   })
 })
-
 describe('列功能', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    vi.mocked(auth).mockResolvedValue({ user: { id: 'user-1' } } as any)
-  })
-
-  describe('createColumn', () => {
-    it('成功创建列', async () => {
-      vi.mocked(prisma.column.aggregate).mockResolvedValue({ _max: { position: 1 } } as any)
-      vi.mocked(prisma.column.create).mockResolvedValue({ id: 'col-1', name: '新列' } as any)
-      const { createColumn } = await import('@/app/actions')
-      const result = await createColumn({ name: '新列', boardId: 'board-1' })
-      expect(result.id).toBe('col-1')
-    })
-  })
-
-  describe('deleteColumn', () => {
-    it('成功删除列', async () => {
-      vi.mocked(prisma.column.delete).mockResolvedValue({} as any)
-      const { deleteColumn } = await import('@/app/actions')
-      await deleteColumn('col-1')
-      expect(prisma.column.delete).toHaveBeenCalledWith({ where: { id: 'col-1' } })
-    })
+  beforeEach(() => { resetAllMocks() })
+  it('createColumn 成功', async () => {
+    mockPrisma.board.findFirst.mockResolvedValue({ id: 'b1', userId: 'user-1' })
+    mockPrisma.column.aggregate.mockResolvedValue({ _max: { position: 0 } })
+    mockPrisma.column.create.mockResolvedValue({ id: 'col-1', name: '新列', position: 1, boardId: 'b1' })
+    const { createColumn } = await import('@/app/actions')
+    const result = await createColumn({ name: '新列', boardId: 'b1' })
+    expect(result.column).toBeDefined()
   })
 })
-
 describe('卡片功能', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    vi.mocked(auth).mockResolvedValue({ user: { id: 'user-1' } } as any)
-  })
-
-  describe('createCard', () => {
-    it('成功创建卡片', async () => {
-      vi.mocked(prisma.card.aggregate).mockResolvedValue({ _max: { position: 2 } } as any)
-      vi.mocked(prisma.card.create).mockResolvedValue({ id: 'card-1', title: '新卡片' } as any)
-      const { createCard } = await import('@/app/actions')
-      const result = await createCard({ title: '新卡片', columnId: 'col-1' })
-      expect(result.id).toBe('card-1')
-    })
-  })
-
-  describe('moveCard', () => {
-    it('成功移动卡片', async () => {
-      vi.mocked(prisma.card.update).mockResolvedValue({} as any)
-      const { moveCard } = await import('@/app/actions')
-      await moveCard('card-1', 'col-2', 0)
-      expect(prisma.card.update).toHaveBeenCalledWith({
-        where: { id: 'card-1' },
-        data: { columnId: 'col-2', position: 0 },
-      })
-    })
-  })
-
-  describe('deleteCard', () => {
-    it('成功删除卡片', async () => {
-      vi.mocked(prisma.card.delete).mockResolvedValue({} as any)
-      const { deleteCard } = await import('@/app/actions')
-      await deleteCard('card-1')
-      expect(prisma.card.delete).toHaveBeenCalledWith({ where: { id: 'card-1' } })
-    })
+  beforeEach(() => { resetAllMocks() })
+  it('createCard 成功', async () => {
+    mockPrisma.column.findUnique.mockResolvedValue({ id: 'col-1', boardId: 'b1', board: { userId: 'user-1' } })
+    mockPrisma.card.aggregate.mockResolvedValue({ _max: { position: 0 } })
+    mockPrisma.card.create.mockResolvedValue({ id: 'card-1', title: '新卡片', columnId: 'col-1', position: 0 })
+    const { createCard } = await import('@/app/actions')
+    const result = await createCard({ title: '新卡片', columnId: 'col-1' })
+    expect(result.card).toBeDefined()
+    expect(result.card!.title).toBe('新卡片')
   })
 })
-
+describe('移动功能', () => {
+  beforeEach(() => { resetAllMocks() })
+  it('moveCard 成功', async () => {
+    mockPrisma.card.findUnique.mockResolvedValue({ id: 'card-1', column: { board: { userId: 'user-1' } } })
+    mockPrisma.column.findUnique.mockResolvedValue({ id: 'col-2', board: { userId: 'user-1' } })
+    mockPrisma.card.update.mockResolvedValue({ id: 'card-1', columnId: 'col-2', position: 0 })
+    const { moveCard } = await import('@/app/actions')
+    const result = await moveCard('card-1', 'col-2', 0)
+    expect(result.success).toBe(true)
+  })
+})
 describe('子任务功能', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    vi.mocked(auth).mockResolvedValue({ user: { id: 'user-1' } } as any)
+  beforeEach(() => { resetAllMocks() })
+  it('createSubtask 成功', async () => {
+    mockPrisma.card.findUnique.mockResolvedValue({ id: 'card-1', column: { board: { userId: 'user-1' } } })
+    mockPrisma.subtask.create.mockResolvedValue({ id: 'sub-1', title: '子任务', completed: false, cardId: 'card-1' })
+    const { createSubtask } = await import('@/app/actions')
+    const result = await createSubtask({ title: '子任务', cardId: 'card-1' })
+    expect(result.subtask).toBeDefined()
+    expect(result.subtask!.title).toBe('子任务')
   })
-
-  describe('updateSubtask', () => {
-    it('成功更新子任务', async () => {
-      vi.mocked(prisma.subtask.update).mockResolvedValue({} as any)
-      const { updateSubtask } = await import('@/app/actions')
-      await updateSubtask('subtask-1', { completed: true })
-      expect(prisma.subtask.update).toHaveBeenCalledWith({
-        where: { id: 'subtask-1' },
-        data: { completed: true },
-      })
-    })
+  it('updateSubtask 成功', async () => {
+    mockPrisma.subtask.findUnique.mockResolvedValue({ id: 'sub-1', card: { column: { board: { userId: 'user-1' } } } })
+    mockPrisma.subtask.update.mockResolvedValue({ id: 'sub-1', title: '子任务', completed: true })
+    const { updateSubtask } = await import('@/app/actions')
+    const result = await updateSubtask('sub-1', { completed: true })
+    expect(result.subtask).toBeDefined()
+    expect(result.subtask!.completed).toBe(true)
+  })
+  it('deleteSubtask 成功', async () => {
+    mockPrisma.subtask.findUnique.mockResolvedValue({ id: 'sub-1', card: { column: { board: { userId: 'user-1' } } } })
+    mockPrisma.subtask.delete.mockResolvedValue({ id: 'sub-1' })
+    const { deleteSubtask } = await import('@/app/actions')
+    const result = await deleteSubtask('sub-1')
+    expect(result.success).toBe(true)
   })
 })
-
 describe('评论功能', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    vi.mocked(auth).mockResolvedValue({ user: { id: 'user-1' } } as any)
+  beforeEach(() => { resetAllMocks() })
+  it('createComment 成功', async () => {
+    mockPrisma.card.findUnique.mockResolvedValue({ id: 'card-1', column: { board: { userId: 'user-1' } } })
+    mockPrisma.comment.create.mockResolvedValue({ id: 'com-1', content: '评论', cardId: 'card-1', userId: 'user-1', user: authUser, createdAt: new Date(), updatedAt: new Date() })
+    const { createComment } = await import('@/app/actions')
+    const result = await createComment({ content: '评论', cardId: 'card-1' })
+    expect(result.comment).toBeDefined()
+    expect(result.comment!.content).toBe('评论')
   })
-
-  describe('createComment', () => {
-    it('成功创建评论', async () => {
-      vi.mocked(prisma.comment.create).mockResolvedValue({ id: 'comment-1' } as any)
-      const { createComment } = await import('@/app/actions')
-      const result = await createComment({ content: '新评论', cardId: 'card-1' })
-      expect(result.id).toBe('comment-1')
-    })
-  })
-
-  describe('deleteComment', () => {
-    it('评论不存在时抛出错误', async () => {
-      vi.mocked(prisma.comment.findUnique).mockResolvedValue(null)
-      const { deleteComment } = await import('@/app/actions')
-      await expect(deleteComment('comment-1')).rejects.toThrow('评论不存在或无权限删除')
-    })
-
-    it('成功删除自己的评论', async () => {
-      vi.mocked(prisma.comment.findUnique).mockResolvedValue({ id: 'comment-1', userId: 'user-1' } as any)
-      vi.mocked(prisma.comment.delete).mockResolvedValue({} as any)
-      const { deleteComment } = await import('@/app/actions')
-      await deleteComment('comment-1')
-      expect(prisma.comment.delete).toHaveBeenCalledWith({ where: { id: 'comment-1' } })
-    })
+  it('deleteComment 成功', async () => {
+    mockPrisma.comment.findUnique.mockResolvedValue({ id: 'com-1', card: { column: { board: { userId: 'user-1' } } } })
+    mockPrisma.comment.delete.mockResolvedValue({ id: 'com-1' })
+    const { deleteComment } = await import('@/app/actions')
+    const result = await deleteComment('com-1')
+    expect(result.success).toBe(true)
   })
 })

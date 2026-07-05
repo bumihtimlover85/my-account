@@ -5,6 +5,8 @@ export interface User {
   image?: string | null;
 }
 
+export type Priority = 'low' | 'medium' | 'high';
+
 export interface Subtask {
   id: string;
   title: string;
@@ -30,6 +32,8 @@ export interface Card {
   description?: string | null;
   position: number;
   columnId: string;
+  priority: Priority;
+  assigneeId?: string | null;
   subtasks: Subtask[];
   comments: Comment[];
   createdAt: Date;
@@ -55,5 +59,3 @@ export interface Board {
   createdAt: Date;
   updatedAt: Date;
 }
-
-export type Priority = 'low' | 'medium' | 'high';

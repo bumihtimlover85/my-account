@@ -1,12 +1,10 @@
 generator client {
   provider = "prisma-client-js"
 }
-
 datasource db {
   provider = "postgresql"
   url      = env("POSTGRES_PRISMA_URL")
 }
-
 model User {
   id            String        @id @default(uuid())
   email         String        @unique
@@ -19,7 +17,6 @@ model User {
   boards        Board[]
   comments      Comment[]
 }
-
 model Board {
   id            String        @id @default(uuid())
   name          String
@@ -31,25 +28,23 @@ model Board {
   columns       Column[]
   @@index([userId])
 }
-
 model Column {
   id            String        @id @default(uuid())
   name          String
   boardId       String
-  order         Int           @default(0)
+  position      Int           @default(0)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   board         Board         @relation(fields: [boardId], references: [id], onDelete: Cascade)
   cards         Card[]
   @@index([boardId])
 }
-
 model Card {
   id            String        @id @default(uuid())
   title         String
   description   String?
   columnId      String
-  order         Int           @default(0)
+  position      Int           @default(0)
   priority      String        @default("medium")
   assigneeId    String?
   createdAt     DateTime      @default(now())
@@ -61,7 +56,6 @@ model Card {
   @@index([columnId])
   @@index([assigneeId])
 }
-
 model Subtask {
   id            String        @id @default(uuid())
   title         String
@@ -72,7 +66,6 @@ model Subtask {
   card          Card          @relation(fields: [cardId], references: [id], onDelete: Cascade)
   @@index([cardId])
 }
-
 model Comment {
   id            String        @id @default(uuid())
   content       String
