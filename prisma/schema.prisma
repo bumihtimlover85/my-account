@@ -1,52 +1,79 @@
 generator client {
   provider = "prisma-client-js"
 }
-
 datasource db {
   provider = "postgresql"
   url      = env("POSTGRES_PRISMA_URL")
 }
-
 model User {
   id            String        @id @default(uuid())
   email         String        @unique
   name          String
   password      String
+  avatar        String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
-  transactions  Transaction[]
-  categories    Category[]
+  boards        Board[]
+  comments      Comment[]
 }
-
-model Category {
+model Board {
   id            String        @id @default(uuid())
-  userId        String
   name          String
-  type          String
-  icon          String        @default("circle")
-  color         String
+  description   String?
+  userId        String
   createdAt     DateTime      @default(now())
-
+  updatedAt     DateTime      @updatedAt
   user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions  Transaction[]
-
-  @@unique([userId, name, type])
+  columns       Column[]
+  @@index([userId])
 }
-
-model Transaction {
-  id         String   @id @default(uuid())
-  userId     String
-  amount     Decimal  @db.Decimal(12, 2)
-  type       String
-  categoryId String
-  date       DateTime @db.Date
-  note       String?
-  createdAt  DateTime @default(now())
-
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-
-  @@index([userId, date])
-  @@index([userId, type])
-  @@index([categoryId])
+model Column {
+  id            String        @id @default(uuid())
+  name          String
+  boardId       String
+  position      Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  board         Board         @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  cards         Card[]
+  @@index([boardId])
+}
+model Card {
+  id            String        @id @default(uuid())
+  title         String
+  description   String?
+  columnId      String
+  position      Int           @default(0)
+  priority      String        @default("medium")
+  assigneeId    String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  column        Column        @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  assignee      User?         @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  subtasks      Subtask[]
+  comments      Comment[]
+  @@index([columnId])
+  @@index([assigneeId])
+}
+model Subtask {
+  id            String        @id @default(uuid())
+  title         String
+  completed     Boolean       @default(false)
+  cardId        String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  card          Card          @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  @@index([cardId])
+}
+model Comment {
+  id            String        @id @default(uuid())
+  content       String
+  cardId        String
+  userId        String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  card          Card          @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([cardId])
+  @@index([userId])
 }

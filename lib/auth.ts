@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
-import { prisma } from './prisma';
+import { prisma } from '@/lib/prisma';
 import { User } from '@prisma/client';
 
 const JWT_SECRET = process.env.JWT_SECRET!;
