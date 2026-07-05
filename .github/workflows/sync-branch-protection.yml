@@ -1,6 +1,3 @@
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 name: Sync Branch Protection
 
 on:
@@ -59,7 +56,7 @@ jobs:
                       if content and 'jobs' in content:
                           for job_name in content['jobs'].keys():
                               # 排除同步 workflow 自己的 job
-                              if job_name not in ('sync', 'deploy'):
+                              if job_name != 'sync':
                                   job_names.add(job_name)
 
                       print(f"Extracted from {workflow_file.name}: {list(content.get('jobs', {}).keys())}")
@@ -74,7 +71,7 @@ jobs:
                       if content and 'jobs' in content:
                           for job_name in content['jobs'].keys():
                               # 排除同步 workflow 自己的 job
-                              if job_name not in ('sync', 'deploy'):
+                              if job_name != 'sync':
                                   job_names.add(job_name)
 
                       print(f"Extracted from {workflow_file.name}: {list(content.get('jobs', {}).keys())}")
