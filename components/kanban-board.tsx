@@ -1,5 +1,5 @@
 'use client';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -28,6 +28,8 @@ export default function KanbanBoard({ initialCards }: KanbanBoardProps) {
   const [activeCard, setActiveCard] = useState<Card | null>(null);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [addCardStatus, setAddCardStatus] = useState<string | null>(null);
+  const cardsRef = useRef(cards);
+  cardsRef.current = cards;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -46,16 +48,11 @@ export default function KanbanBoard({ initialCards }: KanbanBoardProps) {
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
     if (!over) return;
-
     const activeId = active.id as string;
     const overId = over.id as string;
-
     const activeCard = cards.find((c) => c.id === activeId);
     const overCard = cards.find((c) => c.id === overId);
-
     if (!activeCard) return;
-
-    // Check if dropping over a column
     const overColumn = COLUMNS.find((col) => col.id === overId);
     if (overColumn && activeCard.status !== overColumn.id) {
       setCards((prev) =>
@@ -63,8 +60,6 @@ export default function KanbanBoard({ initialCards }: KanbanBoardProps) {
       );
       return;
     }
-
-    // Check if swapping cards in different columns
     if (overCard && activeCard.status !== overCard.status) {
       setCards((prev) =>
         prev.map((c) => (c.id === activeId ? { ...c, status: overCard.status } : c))
@@ -75,41 +70,38 @@ export default function KanbanBoard({ initialCards }: KanbanBoardProps) {
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveCard(null);
-
     if (!over) return;
-
     const activeId = active.id as string;
     const overId = over.id as string;
-
     if (activeId === overId) return;
 
-    const activeCard = cards.find((c) => c.id === activeId);
-    const overCard = cards.find((c) => c.id === overId);
-
-    if (!activeCard) return;
-
-    const overColumn = COLUMNS.find((col) => col.id === overId);
-    const finalStatus = overCard?.status || overColumn?.id || activeCard.status;
-
+    // Use functional update to get latest state
+    let finalStatus = '';
+    let finalPosition = 0;
+    
     setCards((prev) => {
-      const oldIndex = prev.findIndex((c) => c.id === activeId);
-      const newIndex = prev.findIndex((c) => c.id === (overCard?.id || overId));
-      const updated = [...prev];
-      const cardIndex = updated.findIndex((c) => c.id === activeId);
-      updated[cardIndex] = { ...updated[cardIndex], status: finalStatus };
-
+      const activeCard = prev.find((c) => c.id === activeId);
+      const overCard = prev.find((c) => c.id === overId);
+      if (!activeCard) return prev;
+      
+      const overColumn = COLUMNS.find((col) => col.id === overId);
+      finalStatus = overCard?.status || overColumn?.id || activeCard.status;
+      
+      const updated = prev.map((c) => (c.id === activeId ? { ...c, status: finalStatus } : c));
       const sameStatus = updated.filter((c) => c.status === finalStatus);
-      const positions = sameStatus.map((c, i) => ({ id: c.id, position: i }));
-
+      finalPosition = sameStatus.findIndex((c) => c.id === activeId);
+      
       return updated.map((c) => {
-        const pos = positions.find((p) => p.id === c.id);
-        return pos ? { ...c, position: pos.position } : c;
+        if (c.status === finalStatus) {
+          const pos = sameStatus.findIndex((sc) => sc.id === c.id);
+          return { ...c, position: pos >= 0 ? pos : c.position };
+        }
+        return c;
       });
     });
 
-    // Persist to server
-    const statusCards = cards.filter((c) => c.status === finalStatus);
-    await moveCard(activeId, finalStatus, statusCards.length);
+    // Persist to server with correct position
+    await moveCard(activeId, finalStatus, Math.max(0, finalPosition));
   };
 
   const handleRefresh = async () => {
@@ -140,12 +132,10 @@ export default function KanbanBoard({ initialCards }: KanbanBoardProps) {
             />
           ))}
         </div>
-
         <DragOverlay>
           {activeCard && <KanbanCard card={activeCard} onClick={() => {}} />}
         </DragOverlay>
       </DndContext>
-
       {selectedCard && (
         <CardModal
           card={cards.find((c) => c.id === selectedCard.id) || selectedCard}
@@ -153,7 +143,6 @@ export default function KanbanBoard({ initialCards }: KanbanBoardProps) {
           onUpdate={handleRefresh}
         />
       )}
-
       {addCardStatus && (
         <AddCardModal
           defaultStatus={addCardStatus}

@@ -1,18 +1,19 @@
 'use client';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { User } from '@/types';
 import { logout } from '@/app/actions';
 
 export default function Navbar({ user }: { user: User | null }) {
-  const pathname = usePathname();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   const handleLogout = async () => {
     setLoading(true);
     await logout();
+    router.push('/login');
+    router.refresh();
   };
 
   return (

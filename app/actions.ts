@@ -4,6 +4,9 @@ import { getCurrentUser, signToken, setAuthCookie, clearAuthCookie } from '@/lib
 import bcrypt from 'bcryptjs';
 import { revalidatePath } from 'next/cache';
 
+const VALID_STATUSES = ['todo', 'in_progress', 'testing', 'done'] as const;
+const VALID_PRIORITIES = ['high', 'medium', 'low'] as const;
+
 // Auth actions
 export async function register(name: string, email: string, password: string) {
   try {
@@ -43,6 +46,14 @@ export async function logout() {
 export async function createCard(data: { title: string; description?: string; priority: string; status: string }) {
   const user = await getCurrentUser();
   if (!user) throw new Error('未登录');
+  
+  if (!VALID_STATUSES.includes(data.status as any)) {
+    throw new Error('无效的状态值');
+  }
+  if (!VALID_PRIORITIES.includes(data.priority as any)) {
+    throw new Error('无效的优先级值');
+  }
+  
   const maxPosition = await prisma.card.aggregate({
     where: { userId: user.id, status: data.status },
     _max: { position: true },
@@ -63,6 +74,14 @@ export async function createCard(data: { title: string; description?: string; pr
 export async function updateCard(id: string, data: { title?: string; description?: string; priority?: string; status?: string }) {
   const user = await getCurrentUser();
   if (!user) throw new Error('未登录');
+  
+  if (data.status && !VALID_STATUSES.includes(data.status as any)) {
+    throw new Error('无效的状态值');
+  }
+  if (data.priority && !VALID_PRIORITIES.includes(data.priority as any)) {
+    throw new Error('无效的优先级值');
+  }
+  
   await prisma.card.updateMany({
     where: { id, userId: user.id },
     data,
@@ -80,10 +99,16 @@ export async function deleteCard(id: string) {
 export async function moveCard(id: string, status: string, position: number) {
   const user = await getCurrentUser();
   if (!user) throw new Error('未登录');
+  
+  if (!VALID_STATUSES.includes(status as any)) {
+    throw new Error('无效的状态值');
+  }
+  
   await prisma.card.updateMany({
     where: { id, userId: user.id },
     data: { status, position },
   });
+  revalidatePath('/');
 }
 
 // Subtask actions
@@ -97,8 +122,16 @@ export async function addSubtask(cardId: string, title: string) {
 }
 
 export async function toggleSubtask(id: string) {
-  const subtask = await prisma.subtask.findUnique({ where: { id } });
+  const user = await getCurrentUser();
+  if (!user) throw new Error('未登录');
+  
+  const subtask = await prisma.subtask.findUnique({
+    where: { id },
+    include: { card: true },
+  });
   if (!subtask) throw new Error('子任务不存在');
+  if (subtask.card.userId !== user.id) throw new Error('无权操作');
+  
   await prisma.subtask.update({
     where: { id },
     data: { completed: !subtask.completed },
