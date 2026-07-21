@@ -5,12 +5,13 @@ import { COLUMNS, PRIORITIES } from '@/types';
 import { X, Plus } from 'lucide-react';
 
 interface AddCardModalProps {
+  projectId: string;
   defaultStatus: string;
   onClose: () => void;
   onUpdate: () => void;
 }
 
-export default function AddCardModal({ defaultStatus, onClose, onUpdate }: AddCardModalProps) {
+export default function AddCardModal({ defaultStatus, onClose, onUpdate, projectId }: AddCardModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('medium');
@@ -31,7 +32,7 @@ export default function AddCardModal({ defaultStatus, onClose, onUpdate }: AddCa
     e.preventDefault();
     if (!title.trim()) return;
     setLoading(true);
-    await createCard({ title, description, priority, status });
+    await createCard({ title, description, priority, status, projectId });
     onUpdate();
     handleClose();
   };

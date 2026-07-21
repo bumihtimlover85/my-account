@@ -40,7 +40,7 @@ export async function logout() {
   await clearAuthCookie();
 }
 // Card actions
-export async function createCard(data: { title: string; description?: string; priority: string; status: string }) {
+export async function createCard(data: { title: string; description?: string; priority: string; status: string; projectId: string }) {
   const user = await getCurrentUser();
   if (!user) throw new Error('未登录');
   
@@ -63,6 +63,7 @@ export async function createCard(data: { title: string; description?: string; pr
       status: data.status,
       position: (maxPosition._max.position ?? -1) + 1,
       userId: user.id,
+      projectId: data.projectId,
     },
   });
   revalidatePath('/');
@@ -152,5 +153,47 @@ export async function deleteSubtask(id: string) {
   if (subtask.card.userId !== user.id) throw new Error('无权操作');
   
   await prisma.subtask.delete({ where: { id } });
+  revalidatePath('/');
+}
+
+// Project actions
+export async function createProject(name: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('未登录');
+  const project = await prisma.project.create({
+    data: { name, userId: user.id },
+  });
+  revalidatePath('/');
+  return project;
+}
+
+export async function getProjects() {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  return prisma.project.findMany({
+    where: { userId: user.id },
+    orderBy: { createdAt: 'asc' },
+  });
+}
+
+export async function renameProject(id: string, name: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('未登录');
+  const project = await prisma.project.findFirst({
+    where: { id, userId: user.id },
+  });
+  if (!project) throw new Error('项目不存在');
+  await prisma.project.update({ where: { id }, data: { name } });
+  revalidatePath('/');
+}
+
+export async function deleteProject(id: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('未登录');
+  const project = await prisma.project.findFirst({
+    where: { id, userId: user.id },
+  });
+  if (!project) throw new Error('项目不存在');
+  await prisma.project.delete({ where: { id } });
   revalidatePath('/');
 }

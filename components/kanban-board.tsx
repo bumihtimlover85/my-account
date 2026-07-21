@@ -22,10 +22,11 @@ import { moveCard } from '@/app/actions';
 const VALID_STATUSES = ['todo', 'in_progress', 'testing', 'done'] as const;
 
 interface KanbanBoardProps {
+  currentProjectId: string;
   initialCards: Card[];
 }
 
-export default function KanbanBoard({ initialCards }: KanbanBoardProps) {
+export default function KanbanBoard({ initialCards, currentProjectId }: KanbanBoardProps) {
   const [cards, setCards] = useState<Card[]>(initialCards);
   const [activeCard, setActiveCard] = useState<Card | null>(null);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
@@ -171,7 +172,7 @@ export default function KanbanBoard({ initialCards }: KanbanBoardProps) {
       )}
 
       {addCardStatus && (
-        <AddCardModal
+        <AddCardModal projectId={currentProjectId} 
           defaultStatus={addCardStatus}
           onClose={() => setAddCardStatus(null)}
           onUpdate={handleRefresh}

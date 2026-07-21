@@ -1,7 +1,7 @@
 'use client';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Card, COLUMNS } from '@/types';
+import { Card } from '@/types';
 import KanbanCard from './kanban-card';
 import { Plus, Circle, Play, Bug, CheckCircle } from 'lucide-react';
 
