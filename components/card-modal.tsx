@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useEffect, useRef } from 'react';
 import { Card, PRIORITIES } from '@/types';
 import { updateCard, addSubtask, toggleSubtask, addComment, deleteCard } from '@/app/actions';
@@ -22,7 +21,6 @@ export default function CardModal({ card, onClose, onUpdate }: CardModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // 入场动画
     requestAnimationFrame(() => setVisible(true));
   }, []);
 
@@ -76,7 +74,7 @@ export default function CardModal({ card, onClose, onUpdate }: CardModalProps) {
     >
       {/* 遮罩 */}
       <div
-        className={`absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm transition-all duration-300 ease-out-expo ${
+        className={`absolute inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
           visible ? 'opacity-100' : 'opacity-0'
         }`}
       />
@@ -84,9 +82,9 @@ export default function CardModal({ card, onClose, onUpdate }: CardModalProps) {
       {/* 模态框 */}
       <div
         className={`
-          relative bg-surface rounded-2xl shadow-modal w-full max-w-lg max-h-[85vh] overflow-y-auto
-          border border-border-light
-          transition-all duration-300 ease-out-expo
+          relative bg-surface dark:bg-surface-elevated rounded-2xl shadow-modal w-full max-w-lg max-h-[85vh] overflow-y-auto
+          border border-border-light/50
+          transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]
           ${visible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-4'}
         `}
         onClick={(e) => e.stopPropagation()}
@@ -99,8 +97,9 @@ export default function CardModal({ card, onClose, onUpdate }: CardModalProps) {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full text-lg font-semibold text-text-primary bg-transparent
-                  border-b border-transparent hover:border-border-light focus:border-brand-500
-                  outline-none transition-colors duration-200 pb-1"
+                  border-b border-transparent hover:border-border-light focus:border-brand-400
+                  outline-none transition-all duration-200 pb-1
+                  focus:ring-0"
                 placeholder="卡片标题"
               />
             </div>
@@ -108,7 +107,8 @@ export default function CardModal({ card, onClose, onUpdate }: CardModalProps) {
               onClick={handleClose}
               className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center
                 text-text-tertiary hover:text-text-primary hover:bg-surface-hover
-                transition-all duration-200 active:scale-90"
+                transition-all duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]
+                active:scale-90"
             >
               <X className="w-4 h-4" />
             </button>
@@ -126,10 +126,10 @@ export default function CardModal({ card, onClose, onUpdate }: CardModalProps) {
                   onClick={() => setPriority(key)}
                   className={`
                     px-3 py-1.5 rounded-lg text-xs font-medium
-                    transition-all duration-200 ease-out-expo
+                    transition-all duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]
                     active:scale-95
                     ${priority === key
-                      ? `${val.color} ring-2 ring-offset-1 ring-current dark:ring-offset-surface`
+                      ? `${val.color} ring-2 ring-offset-1 ring-current dark:ring-offset-surface-elevated`
                       : 'text-text-tertiary bg-surface-hover hover:bg-surface-hover/80'
                     }
                   `}
@@ -149,11 +149,11 @@ export default function CardModal({ card, onClose, onUpdate }: CardModalProps) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full border border-border-light rounded-xl p-3 text-sm
-                bg-surface text-text-primary
+                bg-surface dark:bg-surface-muted text-text-primary
                 placeholder:text-text-tertiary
                 resize-none h-24
                 transition-all duration-200
-                focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20
+                focus:border-brand-400 focus:ring-2 focus:ring-brand-500/15
                 outline-none"
               placeholder="添加描述..."
             />
@@ -166,9 +166,10 @@ export default function CardModal({ card, onClose, onUpdate }: CardModalProps) {
               disabled={loading}
               className="
                 flex items-center gap-1.5 px-4 py-2 rounded-xl
-                bg-brand-600 text-white text-sm font-medium
-                hover:bg-brand-700
-                transition-all duration-200 ease-out-expo
+                bg-gradient-to-br from-brand-500 to-brand-600 text-white text-sm font-medium
+                hover:from-brand-600 hover:to-brand-700
+                shadow-lg shadow-brand-500/15
+                transition-all duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]
                 active:scale-95
                 disabled:opacity-50
                 focus:outline-none focus:ring-2 focus:ring-brand-500/40
@@ -181,8 +182,8 @@ export default function CardModal({ card, onClose, onUpdate }: CardModalProps) {
               onClick={handleDelete}
               className="
                 flex items-center gap-1.5 px-3 py-2 rounded-xl
-                text-text-tertiary hover:text-error hover:bg-error/5
-                text-sm transition-all duration-200 ease-out-expo
+                text-text-tertiary hover:text-error hover:bg-error-bg
+                text-sm transition-all duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]
                 active:scale-95
               "
             >
@@ -243,16 +244,17 @@ export default function CardModal({ card, onClose, onUpdate }: CardModalProps) {
                 onKeyDown={(e) => e.key === 'Enter' && handleAddSubtask()}
                 placeholder="添加子任务..."
                 className="flex-1 border border-border-light rounded-xl px-3 py-2 text-sm
-                  bg-surface text-text-primary placeholder:text-text-tertiary
+                  bg-surface dark:bg-surface-muted text-text-primary placeholder:text-text-tertiary
                   outline-none transition-all duration-200
-                  focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                  focus:border-brand-400 focus:ring-2 focus:ring-brand-500/15"
               />
               <button
                 onClick={handleAddSubtask}
                 className="w-9 h-9 rounded-xl flex items-center justify-center
                   bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400
                   hover:bg-brand-200 dark:hover:bg-brand-900/50
-                  transition-all duration-200 active:scale-90"
+                  transition-all duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]
+                  active:scale-90"
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -269,7 +271,7 @@ export default function CardModal({ card, onClose, onUpdate }: CardModalProps) {
             </div>
             <div className="space-y-2 mb-3 max-h-32 overflow-y-auto">
               {card.comments.map((c) => (
-                <div key={c.id} className="bg-surface-hover rounded-xl p-3 animate-slide-up">
+                <div key={c.id} className="bg-surface-hover dark:bg-surface-muted rounded-xl p-3 animate-slide-up">
                   <p className="text-[11px] font-medium text-text-secondary mb-1">
                     {c.user?.name || '用户'}
                   </p>
@@ -287,16 +289,18 @@ export default function CardModal({ card, onClose, onUpdate }: CardModalProps) {
                 onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
                 placeholder="添加评论..."
                 className="flex-1 border border-border-light rounded-xl px-3 py-2 text-sm
-                  bg-surface text-text-primary placeholder:text-text-tertiary
+                  bg-surface dark:bg-surface-muted text-text-primary placeholder:text-text-tertiary
                   outline-none transition-all duration-200
-                  focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                  focus:border-brand-400 focus:ring-2 focus:ring-brand-500/15"
               />
               <button
                 onClick={handleAddComment}
                 className="w-9 h-9 rounded-xl flex items-center justify-center
-                  bg-brand-600 text-white
-                  hover:bg-brand-700
-                  transition-all duration-200 active:scale-90"
+                  bg-gradient-to-br from-brand-500 to-brand-600 text-white
+                  hover:from-brand-600 hover:to-brand-700
+                  shadow-lg shadow-brand-500/15
+                  transition-all duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]
+                  active:scale-90"
               >
                 <Send className="w-4 h-4" />
               </button>
