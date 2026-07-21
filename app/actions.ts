@@ -139,3 +139,18 @@ export async function addComment(cardId: string, content: string) {
   });
   revalidatePath('/');
 }
+
+export async function deleteSubtask(id: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('未登录');
+  
+  const subtask = await prisma.subtask.findUnique({
+    where: { id },
+    include: { card: true },
+  });
+  if (!subtask) throw new Error('子任务不存在');
+  if (subtask.card.userId !== user.id) throw new Error('无权操作');
+  
+  await prisma.subtask.delete({ where: { id } });
+  revalidatePath('/');
+}

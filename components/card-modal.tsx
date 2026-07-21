@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { Card, PRIORITIES } from '@/types';
-import { updateCard, addSubtask, toggleSubtask, addComment, deleteCard } from '@/app/actions';
+import { updateCard, addSubtask, toggleSubtask, deleteSubtask, addComment, deleteCard } from '@/app/actions';
 import { X, Save, Trash2, Plus, ListChecks, MessageSquare, Send, CheckSquare } from 'lucide-react';
 
 interface CardModalProps {
@@ -34,6 +34,7 @@ export default function CardModal({ card, onClose, onUpdate }: CardModalProps) {
     await updateCard(card.id, { title, description, priority });
     onUpdate();
     setLoading(false);
+    handleClose();
   };
 
   const handleAddSubtask = async () => {
@@ -207,31 +208,46 @@ export default function CardModal({ card, onClose, onUpdate }: CardModalProps) {
             </div>
             <div className="space-y-1.5 mb-2.5">
               {card.subtasks.map((sub) => (
-                <label
+                <div
                   key={sub.id}
-                  onClick={() => handleToggleSubtask(sub.id)}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl
-                    hover:bg-surface-hover cursor-pointer
-                    transition-all duration-200 group"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl
+                    hover:bg-surface-hover group transition-all duration-200"
                 >
-                  <div className={`
-                    w-4 h-4 rounded-md border-2 flex items-center justify-center
-                    transition-all duration-200
-                    ${sub.completed
-                      ? 'bg-brand-500 border-brand-500'
-                      : 'border-border-default group-hover:border-brand-400'
-                    }
-                  `}>
-                    {sub.completed && <CheckSquare className="w-3 h-3 text-white" />}
-                  </div>
-                  <span className={`text-sm transition-all duration-200 ${
-                    sub.completed
-                      ? 'line-through text-text-tertiary'
-                      : 'text-text-primary'
-                  }`}>
-                    {sub.title}
-                  </span>
-                </label>
+                  <button
+                    onClick={() => handleToggleSubtask(sub.id)}
+                    className="flex items-center gap-2.5 flex-1 text-left"
+                  >
+                    <div className={`
+                      w-4 h-4 rounded-md border-2 flex items-center justify-center shrink-0
+                      transition-all duration-200
+                      ${sub.completed
+                        ? 'bg-brand-500 border-brand-500'
+                        : 'border-border-default group-hover:border-brand-400'
+                      }
+                    `}>
+                      {sub.completed && <CheckSquare className="w-3 h-3 text-white" />}
+                    </div>
+                    <span className={`text-sm transition-all duration-200 ${
+                      sub.completed
+                        ? 'line-through text-text-tertiary'
+                        : 'text-text-primary'
+                    }`}>
+                      {sub.title}
+                    </span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      await deleteSubtask(sub.id);
+                      onUpdate();
+                    }}
+                    className="opacity-0 group-hover:opacity-100 w-6 h-6 rounded-lg flex items-center justify-center
+                      text-text-tertiary hover:text-error hover:bg-error/10
+                      transition-all duration-200"
+                    title="删除子任务"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               ))}
               {card.subtasks.length === 0 && (
                 <p className="text-xs text-text-tertiary px-1">暂无子任务</p>
