@@ -1,36 +1,123 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 项目看板 — 团队任务管理
 
-## Getting Started
+> 一个现代化、响应式的项目管理看板应用，支持拖拽排序、子任务管理和团队协作。
 
-First, run the development server:
+![Next.js](https://img.shields.io/badge/Next.js-16.2.4-black?logo=next.js)
+![React](https://img.shields.io/badge/React-19.2.4-blue?logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-38bdf8?logo=tailwindcss)
+![Prisma](https://img.shields.io/badge/Prisma-5-2d3748?logo=prisma)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169e1?logo=postgresql)
+
+---
+
+## ✨ 功能特性
+
+| 特性 | 说明 |
+|------|------|
+| 📋 **四列看板** | 待办 → 进行中 → 测试中 → 已完成 |
+| 🖱️ **拖拽排序** | 基于 @dnd-kit 的流畅拖拽，支持跨列移动 |
+| 🏷️ **优先级管理** | 高/中/低 三级优先级标记 |
+| ✅ **子任务** | 卡片内添加子任务，进度条可视化 |
+| 💬 **评论系统** | 卡片内实时评论，团队成员可参与讨论 |
+| 🔐 **用户认证** | JWT 认证，bcrypt 密码加密 |
+| 🌙 **深色模式** | 支持亮色/暗色主题切换，跟随系统偏好 |
+| 🎨 **精美 UI** | 双边框卡片设计、毛玻璃导航、弹性动画 |
+| 📱 **响应式** | 完美适配桌面端和移动端 |
+
+## 🛠️ 技术栈
+
+- **框架：** [Next.js 16](https://nextjs.org/) (App Router)
+- **前端：** [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
+- **样式：** [Tailwind CSS 4](https://tailwindcss.com/) + 自定义设计 Token
+- **动画：** CSS 自定义贝塞尔曲线 + 弹性物理动画
+- **数据库：** [PostgreSQL](https://www.postgresql.org/) + [Prisma ORM](https://www.prisma.io/)
+- **拖拽：** [@dnd-kit](https://dndkit.com/)
+- **图标：** [Lucide](https://lucide.dev/)
+- **认证：** JWT + bcryptjs
+
+## 🚀 快速开始
+
+### 前置要求
+
+- Node.js >= 22
+- PostgreSQL 16+
+
+### 安装
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# 克隆仓库
+git clone https://github.com/bumihtimlover85/my-account.git
+cd my-account
+
+# 安装依赖
+npm install
+
+# 配置环境变量
+cp .env.example .env
+# 编辑 .env 填写数据库连接信息
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 配置
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+创建 `.env` 文件：
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+POSTGRES_PRISMA_URL="postgresql://用户名:密码@localhost:5432/myaccount"
+JWT_SECRET="你的JWT密钥"
+```
 
-## Learn More
+### 启动
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+# 同步数据库
+npx prisma db push
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# 启动开发服务器
+npm run dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+打开 [http://localhost:3000](http://localhost:3000) 即可使用。
 
-## Deploy on Vercel
+## 📁 项目结构
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+my-account/
+├── app/                    # Next.js App Router
+│   ├── actions.ts          # Server Actions
+│   ├── layout.tsx          # 根布局
+│   ├── page.tsx            # 首页（看板）
+│   ├── login/              # 登录页
+│   ├── register/           # 注册页
+│   └── globals.css         # 全局样式 + 设计 Token
+├── components/             # React 组件
+│   ├── navbar.tsx          # 浮动导航栏
+│   ├── kanban-board.tsx    # 看板主体
+│   ├── kanban-column.tsx   # 看板列
+│   ├── kanban-card.tsx     # 看板卡片
+│   ├── card-modal.tsx      # 卡片详情弹窗
+│   ├── add-card-modal.tsx  # 新增卡片弹窗
+│   └── theme-provider.tsx  # 深色模式
+├── lib/                    # 工具库
+│   ├── auth.ts             # JWT 认证
+│   ├── prisma.ts           # Prisma 客户端
+│   └── utils.ts            # 通用工具
+├── prisma/                 # 数据库
+│   └── schema.prisma       # 数据模型
+├── types/                  # TypeScript 类型
+└── public/                 # 静态资源
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🧪 测试
+
+```bash
+# 单元测试
+npm test
+
+# E2E 测试
+npm run test:e2e
+```
+
+## 📄 许可证
+
+[MIT](LICENSE)
