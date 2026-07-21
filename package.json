@@ -11,7 +11,12 @@
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
     "prepare": "husky",
+<<<<<<< HEAD
     "postinstall": "prisma generate && prisma db push --accept-data-loss"
+=======
+    "postinstall": "prisma generate",
+    "vercel-build": "prisma generate && prisma db push --accept-data-loss && next build"
+>>>>>>> 175a7e0 (fix: 分离构建脚本，postinstall/build 用于GitHub Actions，vercel-build 含 db push 用于Vercel)
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
