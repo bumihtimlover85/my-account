@@ -7,7 +7,7 @@ import KanbanBoard from '@/components/kanban-board';
 export default async function Home() {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
-  
+
   const cards = await prisma.card.findMany({
     where: { userId: user.id },
     include: { subtasks: true, comments: { include: { user: true } } },
@@ -15,9 +15,11 @@ export default async function Home() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-muted transition-colors duration-300">
       <Navbar user={{ id: user.id, name: user.name, email: user.email }} />
-      <KanbanBoard initialCards={cards} />
+      <main>
+        <KanbanBoard initialCards={cards} />
+      </main>
     </div>
   );
 }

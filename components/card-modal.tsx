@@ -1,7 +1,9 @@
 'use client';
-import { useState } from 'react';
+
+import { useState, useEffect, useRef } from 'react';
 import { Card, PRIORITIES } from '@/types';
 import { updateCard, addSubtask, toggleSubtask, addComment, deleteCard } from '@/app/actions';
+import { X, Save, Trash2, Plus, ListChecks, MessageSquare, Send, CheckSquare } from 'lucide-react';
 
 interface CardModalProps {
   card: Card;
@@ -16,6 +18,18 @@ export default function CardModal({ card, onClose, onUpdate }: CardModalProps) {
   const [newSubtask, setNewSubtask] = useState('');
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // 入场动画
+    requestAnimationFrame(() => setVisible(true));
+  }, []);
+
+  const handleClose = () => {
+    setVisible(false);
+    setTimeout(onClose, 200);
+  };
 
   const handleSave = async () => {
     setLoading(true);
@@ -47,34 +61,78 @@ export default function CardModal({ card, onClose, onUpdate }: CardModalProps) {
     if (confirm('确定删除此卡片？')) {
       await deleteCard(card.id);
       onUpdate();
-      onClose();
+      handleClose();
     }
   };
 
+  const completedSubtasks = card.subtasks.filter((s) => s.completed).length;
+  const totalSubtasks = card.subtasks.length;
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      onClick={(e) => { if (e.target === overlayRef.current) handleClose(); }}
+    >
+      {/* 遮罩 */}
       <div
-        className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+        className={`absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm transition-all duration-300 ease-out-expo ${
+          visible ? 'opacity-100' : 'opacity-0'
+        }`}
+      />
+
+      {/* 模态框 */}
+      <div
+        className={`
+          relative bg-surface rounded-2xl shadow-modal w-full max-w-lg max-h-[85vh] overflow-y-auto
+          border border-border-light
+          transition-all duration-300 ease-out-expo
+          ${visible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-4'}
+        `}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6">
-          <div className="flex justify-between items-start mb-4">
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="text-xl font-bold w-full border-b border-transparent hover:border-gray-300 focus:border-blue-500 outline-none"
-            />
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl ml-2">✕</button>
+          {/* 头部 */}
+          <div className="flex items-start justify-between mb-5">
+            <div className="flex-1 mr-3">
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full text-lg font-semibold text-text-primary bg-transparent
+                  border-b border-transparent hover:border-border-light focus:border-brand-500
+                  outline-none transition-colors duration-200 pb-1"
+                placeholder="卡片标题"
+              />
+            </div>
+            <button
+              onClick={handleClose}
+              className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center
+                text-text-tertiary hover:text-text-primary hover:bg-surface-hover
+                transition-all duration-200 active:scale-90"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
 
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">优先级</label>
+          {/* 优先级 */}
+          <div className="mb-5">
+            <label className="block text-xs font-medium text-text-tertiary mb-2 uppercase tracking-wider">
+              优先级
+            </label>
             <div className="flex gap-2">
               {Object.entries(PRIORITIES).map(([key, val]) => (
                 <button
                   key={key}
                   onClick={() => setPriority(key)}
-                  className={`px-3 py-1 rounded-full text-sm ${val.color} ${priority === key ? 'ring-2 ring-offset-1' : ''}`}
+                  className={`
+                    px-3 py-1.5 rounded-lg text-xs font-medium
+                    transition-all duration-200 ease-out-expo
+                    active:scale-95
+                    ${priority === key
+                      ? `${val.color} ring-2 ring-offset-1 ring-current dark:ring-offset-surface`
+                      : 'text-text-tertiary bg-surface-hover hover:bg-surface-hover/80'
+                    }
+                  `}
                 >
                   {val.label}
                 </button>
@@ -82,47 +140,101 @@ export default function CardModal({ card, onClose, onUpdate }: CardModalProps) {
             </div>
           </div>
 
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">描述</label>
+          {/* 描述 */}
+          <div className="mb-5">
+            <label className="block text-xs font-medium text-text-tertiary mb-2 uppercase tracking-wider">
+              描述
+            </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full border rounded-lg p-2 text-sm h-20 resize-none"
+              className="w-full border border-border-light rounded-xl p-3 text-sm
+                bg-surface text-text-primary
+                placeholder:text-text-tertiary
+                resize-none h-24
+                transition-all duration-200
+                focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20
+                outline-none"
               placeholder="添加描述..."
             />
           </div>
 
-          <div className="flex gap-2 mb-4">
+          {/* 操作按钮 */}
+          <div className="flex gap-2 mb-6">
             <button
               onClick={handleSave}
               disabled={loading}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
+              className="
+                flex items-center gap-1.5 px-4 py-2 rounded-xl
+                bg-brand-600 text-white text-sm font-medium
+                hover:bg-brand-700
+                transition-all duration-200 ease-out-expo
+                active:scale-95
+                disabled:opacity-50
+                focus:outline-none focus:ring-2 focus:ring-brand-500/40
+              "
             >
+              <Save className="w-3.5 h-3.5" />
               {loading ? '保存中...' : '保存'}
             </button>
             <button
               onClick={handleDelete}
-              className="text-red-600 px-4 py-2 rounded-lg text-sm hover:bg-red-50"
+              className="
+                flex items-center gap-1.5 px-3 py-2 rounded-xl
+                text-text-tertiary hover:text-error hover:bg-error/5
+                text-sm transition-all duration-200 ease-out-expo
+                active:scale-95
+              "
             >
-              删除卡片
+              <Trash2 className="w-3.5 h-3.5" />
+              删除
             </button>
           </div>
 
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">子任务</label>
-            <div className="space-y-1 mb-2">
+          {/* 子任务 */}
+          <div className="mb-5">
+            <div className="flex items-center gap-2 mb-3">
+              <ListChecks className="w-4 h-4 text-text-tertiary" />
+              <span className="text-xs font-medium text-text-tertiary uppercase tracking-wider">
+                子任务
+              </span>
+              {totalSubtasks > 0 && (
+                <span className="text-[10px] text-text-tertiary ml-auto">
+                  {completedSubtasks}/{totalSubtasks}
+                </span>
+              )}
+            </div>
+            <div className="space-y-1.5 mb-2.5">
               {card.subtasks.map((sub) => (
-                <label key={sub.id} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={sub.completed}
-                    onChange={() => handleToggleSubtask(sub.id)}
-                  />
-                  <span className={sub.completed ? 'line-through text-gray-400' : ''}>
+                <label
+                  key={sub.id}
+                  onClick={() => handleToggleSubtask(sub.id)}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl
+                    hover:bg-surface-hover cursor-pointer
+                    transition-all duration-200 group"
+                >
+                  <div className={`
+                    w-4 h-4 rounded-md border-2 flex items-center justify-center
+                    transition-all duration-200
+                    ${sub.completed
+                      ? 'bg-brand-500 border-brand-500'
+                      : 'border-border-default group-hover:border-brand-400'
+                    }
+                  `}>
+                    {sub.completed && <CheckSquare className="w-3 h-3 text-white" />}
+                  </div>
+                  <span className={`text-sm transition-all duration-200 ${
+                    sub.completed
+                      ? 'line-through text-text-tertiary'
+                      : 'text-text-primary'
+                  }`}>
                     {sub.title}
                   </span>
                 </label>
               ))}
+              {card.subtasks.length === 0 && (
+                <p className="text-xs text-text-tertiary px-1">暂无子任务</p>
+              )}
             </div>
             <div className="flex gap-2">
               <input
@@ -130,23 +242,43 @@ export default function CardModal({ card, onClose, onUpdate }: CardModalProps) {
                 onChange={(e) => setNewSubtask(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddSubtask()}
                 placeholder="添加子任务..."
-                className="flex-1 border rounded-lg px-2 py-1 text-sm"
+                className="flex-1 border border-border-light rounded-xl px-3 py-2 text-sm
+                  bg-surface text-text-primary placeholder:text-text-tertiary
+                  outline-none transition-all duration-200
+                  focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
               />
-              <button onClick={handleAddSubtask} className="text-blue-600 text-sm hover:underline">
-                添加
+              <button
+                onClick={handleAddSubtask}
+                className="w-9 h-9 rounded-xl flex items-center justify-center
+                  bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400
+                  hover:bg-brand-200 dark:hover:bg-brand-900/50
+                  transition-all duration-200 active:scale-90"
+              >
+                <Plus className="w-4 h-4" />
               </button>
             </div>
           </div>
 
+          {/* 评论 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">评论</label>
-            <div className="space-y-2 mb-2 max-h-40 overflow-y-auto">
+            <div className="flex items-center gap-2 mb-3">
+              <MessageSquare className="w-4 h-4 text-text-tertiary" />
+              <span className="text-xs font-medium text-text-tertiary uppercase tracking-wider">
+                评论
+              </span>
+            </div>
+            <div className="space-y-2 mb-3 max-h-32 overflow-y-auto">
               {card.comments.map((c) => (
-                <div key={c.id} className="bg-gray-50 rounded-lg p-2">
-                  <p className="text-xs text-gray-500 mb-1">{c.user?.name || '用户'}</p>
-                  <p className="text-sm">{c.content}</p>
+                <div key={c.id} className="bg-surface-hover rounded-xl p-3 animate-slide-up">
+                  <p className="text-[11px] font-medium text-text-secondary mb-1">
+                    {c.user?.name || '用户'}
+                  </p>
+                  <p className="text-sm text-text-primary">{c.content}</p>
                 </div>
               ))}
+              {card.comments.length === 0 && (
+                <p className="text-xs text-text-tertiary px-1">暂无评论</p>
+              )}
             </div>
             <div className="flex gap-2">
               <input
@@ -154,10 +286,19 @@ export default function CardModal({ card, onClose, onUpdate }: CardModalProps) {
                 onChange={(e) => setComment(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
                 placeholder="添加评论..."
-                className="flex-1 border rounded-lg px-2 py-1 text-sm"
+                className="flex-1 border border-border-light rounded-xl px-3 py-2 text-sm
+                  bg-surface text-text-primary placeholder:text-text-tertiary
+                  outline-none transition-all duration-200
+                  focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
               />
-              <button onClick={handleAddComment} className="text-blue-600 text-sm hover:underline">
-                发送
+              <button
+                onClick={handleAddComment}
+                className="w-9 h-9 rounded-xl flex items-center justify-center
+                  bg-brand-600 text-white
+                  hover:bg-brand-700
+                  transition-all duration-200 active:scale-90"
+              >
+                <Send className="w-4 h-4" />
               </button>
             </div>
           </div>

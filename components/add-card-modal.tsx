@@ -1,7 +1,9 @@
 'use client';
-import { useState } from 'react';
+
+import { useState, useEffect } from 'react';
 import { createCard } from '@/app/actions';
 import { COLUMNS, PRIORITIES } from '@/types';
+import { X, Plus } from 'lucide-react';
 
 interface AddCardModalProps {
   defaultStatus: string;
@@ -15,6 +17,17 @@ export default function AddCardModal({ defaultStatus, onClose, onUpdate }: AddCa
   const [priority, setPriority] = useState('medium');
   const [status, setStatus] = useState(defaultStatus);
   const [loading, setLoading] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const inputRef = useState<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    requestAnimationFrame(() => setVisible(true));
+  }, []);
+
+  const handleClose = () => {
+    setVisible(false);
+    setTimeout(onClose, 200);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,77 +35,164 @@ export default function AddCardModal({ defaultStatus, onClose, onUpdate }: AddCa
     setLoading(true);
     await createCard({ title, description, priority, status });
     onUpdate();
-    onClose();
+    handleClose();
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      onClick={handleClose}
+    >
+      {/* 遮罩 */}
       <div
-        className="bg-white rounded-xl shadow-xl w-full max-w-md"
+        className={`absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm transition-all duration-300 ease-out-expo ${
+          visible ? 'opacity-100' : 'opacity-0'
+        }`}
+      />
+
+      {/* 模态框 */}
+      <div
+        className={`
+          relative bg-surface rounded-2xl shadow-modal w-full max-w-md
+          border border-border-light
+          transition-all duration-300 ease-out-expo
+          ${visible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-4'}
+        `}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6">
-          <h2 className="text-lg font-bold mb-4">新建卡片</h2>
+          {/* 头部 */}
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center">
+                <Plus className="w-4 h-4 text-brand-600 dark:text-brand-400" />
+              </div>
+              <h2 className="text-base font-semibold text-text-primary">新建卡片</h2>
+            </div>
+            <button
+              onClick={handleClose}
+              className="w-8 h-8 rounded-xl flex items-center justify-center
+                text-text-tertiary hover:text-text-primary hover:bg-surface-hover
+                transition-all duration-200 active:scale-90"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* 标题 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">标题 *</label>
+              <label className="block text-xs font-medium text-text-tertiary mb-1.5 uppercase tracking-wider">
+                标题 <span className="text-error">*</span>
+              </label>
               <input
+                ref={(el) => { if (el) inputRef[1](el); }}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm"
+                className="w-full border border-border-light rounded-xl px-3.5 py-2.5 text-sm
+                  bg-surface text-text-primary placeholder:text-text-tertiary
+                  outline-none transition-all duration-200
+                  focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
                 placeholder="输入卡片标题..."
                 autoFocus
                 required
               />
             </div>
+
+            {/* 描述 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">描述</label>
+              <label className="block text-xs font-medium text-text-tertiary mb-1.5 uppercase tracking-wider">
+                描述
+              </label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm h-20 resize-none"
+                className="w-full border border-border-light rounded-xl px-3.5 py-2.5 text-sm
+                  bg-surface text-text-primary placeholder:text-text-tertiary
+                  outline-none transition-all duration-200 resize-none h-20
+                  focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
                 placeholder="添加描述..."
               />
             </div>
+
+            {/* 状态 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">状态</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm"
-              >
+              <label className="block text-xs font-medium text-text-tertiary mb-1.5 uppercase tracking-wider">
+                状态
+              </label>
+              <div className="flex gap-1.5 flex-wrap">
                 {COLUMNS.map((col) => (
-                  <option key={col.id} value={col.id}>{col.title}</option>
+                  <button
+                    key={col.id}
+                    type="button"
+                    onClick={() => setStatus(col.id)}
+                    className={`
+                      px-3 py-1.5 rounded-lg text-xs font-medium
+                      transition-all duration-200 ease-out-expo
+                      active:scale-95
+                      ${status === col.id
+                        ? 'bg-brand-600 text-white'
+                        : 'bg-surface-hover text-text-secondary hover:bg-surface-hover/80'
+                      }
+                    `}
+                  >
+                    {col.title}
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
+
+            {/* 优先级 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">优先级</label>
+              <label className="block text-xs font-medium text-text-tertiary mb-1.5 uppercase tracking-wider">
+                优先级
+              </label>
               <div className="flex gap-2">
                 {Object.entries(PRIORITIES).map(([key, val]) => (
                   <button
                     key={key}
                     type="button"
                     onClick={() => setPriority(key)}
-                    className={`px-3 py-1 rounded-full text-sm ${val.color} ${priority === key ? 'ring-2 ring-offset-1' : ''}`}
+                    className={`
+                      px-3 py-1.5 rounded-lg text-xs font-medium
+                      transition-all duration-200 ease-out-expo
+                      active:scale-95
+                      ${priority === key
+                        ? `${val.color} ring-2 ring-offset-1 ring-current dark:ring-offset-surface`
+                        : 'text-text-tertiary bg-surface-hover hover:bg-surface-hover/80'
+                      }
+                    `}
                   >
                     {val.label}
                   </button>
                 ))}
               </div>
             </div>
+
+            {/* 按钮 */}
             <div className="flex gap-2 pt-2">
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                className="
+                  flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl
+                  bg-brand-600 text-white text-sm font-medium
+                  hover:bg-brand-700
+                  transition-all duration-200 ease-out-expo
+                  active:scale-95
+                  disabled:opacity-50
+                  focus:outline-none focus:ring-2 focus:ring-brand-500/40
+                "
               >
+                <Plus className="w-4 h-4" />
                 {loading ? '创建中...' : '创建'}
               </button>
               <button
                 type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                onClick={handleClose}
+                className="px-4 py-2.5 rounded-xl text-sm text-text-secondary
+                  hover:bg-surface-hover
+                  transition-all duration-200"
               >
                 取消
               </button>
